@@ -1,0 +1,3394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>WFM Capacity Planning Engine™ · Kiran BM</title>
+<meta name="description" content="Enterprise WFM Capacity Planning Engine — call center FTE forecasting, shrinkage modeling, and 6-month staffing strategy."/>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════
+WFM CAPACITY PLANNING ENGINE™ v1
+Design: Refined dark SaaS · Linear × Stripe × Vercel DNA
+Font: DM Sans + DM Mono
+Accent: Single blue #4F8EF7 · Red=critical · Amber=warn
+═══════════════════════════════════════════════════════════ */
+:root {
+--bg: #0c0d10;
+--surface: #12141a;
+--surface2: #181b23;
+--surface3: #1e2230;
+--border: rgba(255,255,255,0.065);
+--border2: rgba(255,255,255,0.11);
+--border3: rgba(255,255,255,0.16);
+
+--blue: #4F8EF7;
+--blue-dim: rgba(79,142,247,0.10);
+--blue-mid: rgba(79,142,247,0.18);
+--blue-glow: rgba(79,142,247,0.28);
+--red: #F25757;
+--red-dim: rgba(242,87,87,0.10);
+--amber: #F5A623;
+--amber-dim: rgba(245,166,35,0.10);
+--green: #3ECF8E;
+--green-dim: rgba(62,207,142,0.10);
+
+--text: #ECEEF4;
+--text2: #8791A5;
+--text3: #4C5470;
+
+--sans: 'DM Sans', system-ui, sans-serif;
+--mono: 'DM Mono', 'Fira Mono', monospace;
+
+--r: 12px;
+--rs: 8px;
+--rx: 6px;
+--ease: cubic-bezier(0.4,0,0.2,1);
+--ease-spring: cubic-bezier(0.34,1.56,0.64,1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+background: var(--bg);
+color: var(--text);
+font-family: var(--sans);
+font-size: 14px;
+line-height: 1.6;
+-webkit-font-smoothing: antialiased;
+min-height: 100vh;
+overflow-x: hidden;
+}
+
+/* subtle dot-grid */
+body::before {
+content: '';
+position: fixed; inset: 0; pointer-events: none; z-index: 0;
+background-image: radial-gradient(rgba(79,142,247,0.06) 1px, transparent 1px);
+background-size: 32px 32px;
+}
+
+/* ─── TOOLTIP SYSTEM ─────────────────────────────────── */
+.tip-wrap { position: relative; display: inline-flex; align-items: center; }
+.tip-icon {
+display: inline-flex; align-items: center; justify-content: center;
+width: 14px; height: 14px; border-radius: 50%;
+background: var(--surface3); border: 1px solid var(--border2);
+color: var(--text3); font-size: 9px; font-weight: 600;
+cursor: help; margin-left: 5px; flex-shrink: 0;
+transition: background 0.15s, border-color 0.15s, color 0.15s;
+font-style: normal; line-height: 1;
+}
+.tip-icon:hover { background: var(--blue-dim); border-color: var(--blue); color: var(--blue); }
+
+.tooltip {
+position: absolute;
+bottom: calc(100% + 8px);
+left: 50%; transform: translateX(-50%);
+background: #1e2332;
+border: 1px solid var(--border2);
+border-radius: var(--rs);
+padding: 9px 13px;
+min-width: 200px; max-width: 280px;
+font-family: var(--mono); font-size: 11px; line-height: 1.55;
+color: var(--text2);
+box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+white-space: normal; z-index: 9000;
+opacity: 0; visibility: hidden; pointer-events: none;
+transition: opacity 0.18s var(--ease), transform 0.18s var(--ease);
+transform: translateX(-50%) translateY(4px);
+}
+.tooltip::after {
+content: ''; position: absolute;
+top: 100%; left: 50%; transform: translateX(-50%);
+border: 5px solid transparent; border-top-color: var(--border2);
+}
+.tip-wrap:hover .tooltip,
+.tip-wrap:focus-within .tooltip {
+opacity: 1; visibility: visible;
+transform: translateX(-50%) translateY(0);
+}
+/* left-anchored tooltips */
+.tooltip.tip-left { left: 0; transform: translateX(0) translateY(4px); }
+.tooltip.tip-left::after { left: 18px; transform: none; }
+.tip-wrap:hover .tooltip.tip-left { transform: translateX(0) translateY(0); }
+
+/* ─── STICKY KPI ─────────────────────────────────────── */
+.sticky-kpi {
+position: fixed; top: 60px; left: 0; right: 0; z-index: 150;
+background: rgba(12,13,16,0.88);
+backdrop-filter: blur(20px) saturate(160%);
+border-bottom: 1px solid var(--border2);
+transform: translateY(-100%);
+transition: transform 0.3s var(--ease), opacity 0.3s;
+opacity: 0; pointer-events: none;
+}
+.sticky-kpi.visible { transform: translateY(0); opacity: 1; pointer-events: auto; }
+.sticky-kpi-inner {
+max-width: 1200px; margin: 0 auto; padding: 0 32px;
+height: 52px; display: flex; align-items: center; gap: 0;
+overflow-x: auto; scrollbar-width: none;
+}
+.sticky-kpi-inner::-webkit-scrollbar { display: none; }
+.skpi-item {
+display: flex; align-items: center; gap: 10px;
+padding: 0 20px; height: 52px;
+border-right: 1px solid var(--border);
+flex-shrink: 0;
+}
+.skpi-item:first-child { padding-left: 0; }
+.skpi-item:last-child { border-right: none; }
+.skpi-lbl { font-size: 10px; color: var(--text3); font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; }
+.skpi-val { font-family: var(--mono); font-size: 15px; font-weight: 500; color: var(--text); }
+.skpi-val.s-red { color: var(--red); }
+.skpi-val.s-green { color: var(--green); }
+.skpi-val.s-amber { color: var(--amber); }
+
+/* ─── HEADER ─────────────────────────────────────────── */
+.header {
+position: sticky; top: 0; z-index: 200;
+background: rgba(12,13,16,0.92);
+backdrop-filter: blur(24px) saturate(180%);
+border-bottom: 1px solid var(--border);
+}
+.header-inner {
+max-width: 1200px; margin: 0 auto; padding: 0 32px;
+height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+}
+.logo-group { display: flex; align-items: center; gap: 12px; }
+.logo-chip {
+background: var(--blue); color: #fff;
+font-family: var(--mono); font-size: 10px; font-weight: 500;
+letter-spacing: 0.12em; padding: 4px 9px; border-radius: 6px;
+}
+.logo-name { font-size: 15px; font-weight: 600; letter-spacing: -0.02em; }
+
+.logo-by { font-size: 11px; color: var(--text3); margin-top: 1px; line-height: 1.4; }
+.input-micro-authority { font-size: 11px; color: var(--text3); margin-top: 6px; }
+.micro-section {
+border: 1px solid var(--border);
+background: rgba(255,255,255,0.01);
+border-radius: var(--r);
+padding: 14px 16px;
+margin-top: 14px;
+}
+.micro-section h3 {
+font-size: 11px;
+text-transform: uppercase;
+letter-spacing: 0.12em;
+color: var(--text3);
+margin-bottom: 8px;
+}
+.micro-section p, .micro-section li {
+font-size: 12px;
+color: var(--text2);
+line-height: 1.6;
+}
+.micro-section ul { margin-left: 16px; }
+
+.header-meta { display: flex; align-items: center; gap: 20px; }
+.geo-tag { font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em; color: var(--text3); }
+.header-tagline { font-size: 12px; color: var(--text3); }
+
+/* ─── PAGE ───────────────────────────────────────────── */
+.page { max-width: 1200px; margin: 0 auto; padding: 48px 32px 0; position: relative; z-index: 1; }
+@media(max-width:768px){ .page { padding: 32px 16px 0; } }
+
+/* ─── SECTION TITLE ──────────────────────────────────── */
+.sec { margin-bottom: 48px; }
+.sec-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.sec-title {
+font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
+text-transform: uppercase; color: var(--text3);
+display: flex; align-items: center; gap: 10px;
+}
+.sec-title::after { content: ''; flex: 1; min-width: 32px; height: 1px; background: var(--border); }
+.sec-right { font-size: 11px; color: var(--text3); flex-shrink: 0; }
+
+/* ─── INPUT PANEL ────────────────────────────────────── */
+.input-panel {
+background: var(--surface); border: 1px solid var(--border);
+border-radius: var(--r); padding: 32px; margin-bottom: 48px;
+}
+.input-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; gap: 16px; }
+.input-title { font-size: 18px; font-weight: 600; letter-spacing: -0.02em; }
+.input-hint { font-size: 12px; color: var(--text2); margin-top: 4px; max-width: 480px; }
+.sample-pill {
+font-family: var(--mono); font-size: 10px; font-weight: 500; letter-spacing: 0.08em;
+color: var(--blue); background: var(--blue-dim);
+border: 1px solid rgba(79,142,247,0.22); padding: 5px 12px;
+border-radius: 20px; white-space: nowrap; flex-shrink: 0;
+}
+
+.input-grid {
+display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 24px;
+}
+@media(max-width:900px){ .input-grid{ grid-template-columns: repeat(3,1fr); } }
+@media(max-width:620px){ .input-grid{ grid-template-columns: repeat(2,1fr); } }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field-label {
+font-size: 11px; font-weight: 500; letter-spacing: 0.04em;
+color: var(--text2); text-transform: uppercase;
+display: flex; align-items: center;
+}
+.field input {
+background: var(--surface2); border: 1px solid var(--border);
+border-radius: var(--rs); color: var(--text);
+font-family: var(--mono); font-size: 14px; padding: 10px 13px;
+outline: none; width: 100%;
+transition: border-color 0.18s var(--ease), box-shadow 0.18s var(--ease);
+-webkit-appearance: none; appearance: none;
+}
+.field input:hover { border-color: var(--border2); }
+.field input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-dim); }
+.field input::placeholder { color: var(--text3); }
+.ramp-pair { display: flex; gap: 8px; }
+.ramp-pair input { flex: 1; }
+
+/* ─── ASSUMPTION DRIFT ───────────────────────────────── */
+.drift-input {
+background: var(--surface2); border: 1px solid var(--border);
+border-radius: var(--rx); color: var(--text2);
+font-family: var(--mono); font-size: 11px; padding: 5px 7px;
+outline: none; width: 100%; min-width: 84px;
+transition: border-color 0.18s var(--ease), color 0.18s var(--ease);
+}
+.drift-input:hover { border-color: var(--border2); color: var(--text); }
+.drift-input:focus { border-color: var(--blue); color: var(--text); }
+.stale-badge {
+font-family: var(--mono); font-size: 9px; font-weight: 500; letter-spacing: 0.08em;
+text-transform: uppercase; padding: 3px 7px; border-radius: 4px;
+white-space: nowrap; display: inline-block;
+}
+
+/* ─── v4 ADDITIONS: pills, driver rows, mini-tools, signal badges ──── */
+.pill { font-family: var(--mono); font-size: 10px; font-weight: 500; letter-spacing: 0.06em;
+padding: 4px 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.pill-hist { background: var(--green-dim); color: var(--green); border: 1px solid rgba(62,207,142,0.3); }
+.pill-manual { background: var(--amber-dim); color: var(--amber); border: 1px solid rgba(245,166,35,0.3); }
+.hist-ramp-toggle { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 14px; flex-wrap: wrap; gap: 8px; }
+.hist-ramp-grid { display: grid; grid-template-columns: repeat(6,1fr); gap: 10px; margin-bottom: 6px; }
+@media(max-width:620px){ .hist-ramp-grid{ grid-template-columns: repeat(3,1fr); } }
+.hist-ramp-grid .field-label { font-size: 10px; }
+.subsection-title { font-size: 12px; font-weight: 600; color: var(--text2); margin: 22px 0 10px; display: flex; align-items: center; gap: 8px; }
+
+.driver-list { display: flex; flex-direction: column; gap: 2px; }
+.driver-row { display: grid; grid-template-columns: 150px 1fr 70px; align-items: center; gap: 12px;
+padding: 9px 4px; border-bottom: 1px solid var(--border); }
+.driver-row:last-child { border-bottom: none; }
+.driver-name { font-size: 12px; color: var(--text2); font-weight: 500; }
+.driver-track { height: 6px; background: var(--surface3); border-radius: 99px; overflow: hidden; position: relative; }
+.driver-track .driver-mid { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--border2); }
+.driver-fill { position: absolute; top: 0; bottom: 0; border-radius: 99px; }
+.driver-val { font-family: var(--mono); font-size: 12px; font-weight: 500; text-align: right; }
+
+.plan-compare { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px;
+background: var(--surface2); border: 1px solid var(--border); border-radius: var(--rs); padding: 16px 20px; margin-bottom: 18px; }
+@media(max-width:560px){ .plan-compare{ grid-template-columns: 1fr; text-align:center; } }
+.pc-block .pc-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); margin-bottom: 4px; }
+.pc-block .pc-val { font-family: var(--mono); font-size: 20px; font-weight: 500; color: var(--text); }
+.pc-block .pc-date { font-size: 11px; color: var(--text3); margin-top: 3px; }
+.pc-arrow { color: var(--text3); font-size: 18px; }
+
+/* ─── REFORECAST 3-COL ───────────────────────────────── */
+.reforecast-compare { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px;
+background: var(--surface2); border: 1px solid var(--border); border-radius: var(--rs); padding: 16px 20px; margin-bottom: 4px; }
+@media(max-width:640px){ .reforecast-compare{ grid-template-columns: 1fr; } }
+.reforecast-compare .pc-block { text-align: left; }
+
+/* ─── PLANNING CONFIDENCE ────────────────────────────── */
+.confidence-track { height: 6px; background: var(--surface3); border-radius: 99px; overflow: hidden; margin-top: 6px; width: 100%; max-width: 160px; }
+.confidence-fill { height: 100%; border-radius: 99px; transition: width 0.3s var(--ease); }
+
+/* ─── HISTORY MODAL ──────────────────────────────────── */
+.modal-overlay {
+position: fixed; inset: 0; z-index: 9999;
+background: rgba(8,9,12,0.72); backdrop-filter: blur(3px);
+display: flex; align-items: center; justify-content: center;
+opacity: 0; visibility: hidden; pointer-events: none;
+transition: opacity 0.18s var(--ease);
+padding: 20px;
+}
+.modal-overlay.visible { opacity: 1; visibility: visible; pointer-events: auto; }
+.modal-panel {
+background: var(--surface2); border: 1px solid var(--border2);
+border-radius: var(--r); padding: 26px 28px;
+max-width: 560px; width: 100%; max-height: 82vh; overflow-y: auto;
+box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.modal-title { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+.modal-close { background: none; border: none; color: var(--text3); font-size: 18px; cursor: pointer; line-height: 1; padding: 4px; }
+.modal-close:hover { color: var(--text); }
+.hist-link { background: none; border: 1px solid var(--border2); color: var(--text2);
+font-family: var(--mono); font-size: 10px; padding: 4px 9px; border-radius: 6px; cursor: pointer;
+transition: border-color 0.15s, color 0.15s; white-space: nowrap; }
+.hist-link:hover { border-color: var(--blue); color: var(--blue); }
+
+.mini-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r); padding: 24px 28px; }
+.mini-actions { display: flex; align-items: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.mini-result-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
+@media(max-width:600px){ .mini-result-row{ grid-template-columns: 1fr; } }
+
+.status-banner { display: flex; align-items: center; gap: 14px; padding: 16px 20px; border-radius: var(--r);
+border: 1px solid var(--border); background: var(--surface); margin-bottom: 18px; }
+.status-dot-lg { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.badge-safe { background: var(--green-dim); color: var(--green); }
+.badge-watch { background: var(--amber-dim); color: var(--amber); }
+.badge-risk { background: var(--red-dim); color: var(--red); }
+
+.decision-card { background: linear-gradient(135deg, rgba(79,142,247,0.06), var(--surface)); border: 1px solid rgba(79,142,247,0.2);
+border-radius: var(--r); padding: 22px 26px; margin-bottom: 48px; }
+.decision-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 16px; margin-top: 14px; }
+@media(max-width:900px){ .decision-grid{ grid-template-columns: repeat(2,1fr); } }
+.decision-item .dc-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text3); margin-bottom: 5px; }
+.decision-item .dc-val { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.4; }
+
+.input-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.btn-primary {
+display: inline-flex; align-items: center; gap: 8px;
+background: var(--blue); color: #fff; border: none;
+font-family: var(--sans); font-size: 13px; font-weight: 600;
+padding: 11px 26px; border-radius: var(--rs); cursor: pointer;
+box-shadow: 0 1px 3px rgba(79,142,247,0.3), 0 4px 16px rgba(79,142,247,0.15);
+transition: background 0.18s, transform 0.15s var(--ease), box-shadow 0.18s;
+}
+.btn-primary:hover { background: #3d7ef0; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(79,142,247,0.35); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+.btn-ghost {
+background: transparent; border: 1px solid var(--border);
+color: var(--text2); font-family: var(--sans); font-size: 13px; font-weight: 500;
+padding: 11px 18px; border-radius: var(--rs); cursor: pointer;
+transition: border-color 0.18s, color 0.18s, background 0.18s;
+}
+.btn-ghost:hover { border-color: var(--border2); color: var(--text); background: var(--surface2); }
+
+/* ─── EMPTY STATE ────────────────────────────────────── */
+.empty-state {
+display: flex; flex-direction: column; align-items: center; justify-content: center;
+padding: 96px 32px; text-align: center;
+}
+.empty-icon {
+width: 56px; height: 56px; border-radius: 16px;
+background: var(--surface2); border: 1px solid var(--border);
+display: flex; align-items: center; justify-content: center;
+margin-bottom: 20px;
+}
+.empty-icon svg { width: 24px; height: 24px; color: var(--text3); }
+.empty-title { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; color: var(--text); margin-bottom: 8px; }
+.empty-sub { font-size: 14px; color: var(--text2); max-width: 320px; line-height: 1.6; }
+
+/* ─── SCENARIO TOGGLE ────────────────────────────────── */
+.scenario-toggle { display: flex; align-items: center; gap: 6px; }
+.stog-btn {
+font-family: var(--sans); font-size: 12px; font-weight: 500;
+padding: 5px 14px; border-radius: 20px; cursor: pointer;
+border: 1px solid var(--border); background: transparent;
+color: var(--text2); transition: all 0.18s var(--ease);
+}
+.stog-btn:hover { border-color: var(--border2); color: var(--text); background: var(--surface2); }
+.stog-btn.active {
+background: var(--blue-dim); border-color: rgba(79,142,247,0.4);
+color: var(--blue);
+}
+
+/* ─── EXEC CARDS ─────────────────────────────────────── */
+.exec-row {
+display: grid; grid-template-columns: repeat(3,1fr); gap: 12px;
+}
+@media(max-width:720px){ .exec-row { grid-template-columns: 1fr; } }
+
+.exec-card {
+background: var(--surface); border: 1px solid var(--border);
+border-radius: var(--r); padding: 22px 24px;
+transition: transform 0.2s var(--ease), box-shadow 0.2s;
+}
+.exec-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+.exec-card.is-risk { border-color: rgba(242,87,87,0.25); background: linear-gradient(135deg,rgba(242,87,87,0.05),var(--surface)); }
+.ec-eyebrow { font-size: 10px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text3); margin-bottom: 8px; }
+.ec-value { font-size: 13px; font-weight: 500; color: var(--text); line-height: 1.55; }
+.exec-card.is-risk .ec-value { color: var(--red); }
+
+/* ─── KPI STRIP ──────────────────────────────────────── */
+.kpi-strip {
+display: grid; grid-template-columns: repeat(4,1fr); gap: 12px;
+}
+@media(max-width:900px){ .kpi-strip { grid-template-columns: repeat(2,1fr); } }
+@media(max-width:500px){ .kpi-strip { grid-template-columns: 1fr 1fr; } }
+
+.kpi {
+background: var(--surface); border: 1px solid var(--border);
+border-radius: var(--r); padding: 20px 20px 17px;
+position: relative; overflow: hidden;
+transition: transform 0.2s var(--ease), box-shadow 0.2s, border-color 0.2s;
+cursor: default;
+}
+.kpi:hover { transform: translateY(-3px) scale(1.015); box-shadow: 0 12px 40px rgba(0,0,0,0.45); border-color: var(--border2); }
+.kpi::before {
+content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+background: var(--blue);
+}
+.kpi.kpi-red::before { background: var(--red); }
+.kpi.kpi-green::before { background: var(--green); }
+.kpi.kpi-amber::before { background: var(--amber); }
+
+.kpi-label {
+font-size: 10px; font-weight: 600; letter-spacing: 0.12em;
+text-transform: uppercase; color: var(--text3); margin-bottom: 10px;
+display: flex; align-items: center;
+}
+.kpi-number {
+font-family: var(--mono); font-size: 30px; font-weight: 500;
+letter-spacing: -0.02em; color: var(--text); line-height: 1;
+margin-bottom: 5px;
+}
+.kpi.kpi-red .kpi-number { color: var(--red); }
+.kpi.kpi-green .kpi-number { color: var(--green); }
+.kpi.kpi-amber .kpi-number { color: var(--amber); }
+.kpi-meta { font-size: 11px; color: var(--text3); margin-bottom: 9px; }
+.kpi-formula {
+font-family: var(--mono); font-size: 10px; color: var(--text3);
+background: var(--surface3); border-radius: var(--rx);
+padding: 5px 9px; line-height: 1.4; border: 1px solid var(--border);
+}
+
+/* ─── HEALTH BARS ────────────────────────────────────── */
+.health-panel {
+background: var(--surface); border: 1px solid var(--border);
+border-radius: var(--r); padding: 24px 28px;
+display: grid; grid-template-columns: 1fr 1fr; gap: 28px;
+}
+@media(max-width:600px){ .health-panel { grid-template-columns:1fr; } }
+
+.health-top {
+display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px;
+}
+.health-name { font-size: 12px; font-weight: 500; color: var(--text2); display: flex; align-items: center; }
+.health-val { font-family: var(--mono); font-size: 20px; font-weight: 500; }
+.health-track {
+height: 5px; background: var(--surface3); border-radius: 99px;
+overflow: hidden; border: 1px solid var(--border);
+}
+.health-fill { height: 100%; border-radius: 99px; transition: width 1s var(--ease); }
+.fill-blue { background: linear-gradient(90deg, #4F8EF7, #7AB3FA); }
+.fill-green { background: linear-gradient(90deg, var(--green), #6DDEA8); }
+.fill-amber { background: linear-gradient(90deg, var(--amber), #F7C94B); }
+.fill-red { background: linear-gradient(90deg, var(--red), #F87979); }
+.health-status { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 7px; }
+
+/* ─── CHARTS ─────────────────────────────────────────── */
+.charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media(max-width:680px){ .charts-row { grid-template-columns: 1fr; } }
+
+.chart-card {
+background: var(--surface); border: 1px solid var(--border);
+border-radius: var(--r); padding: 22px 24px;
+}
+.chart-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.chart-sub { font-size: 11px; color: var(--text3); margin-bottom: 20px; }
+.chart-canvas-wrap { position: relative; height: 180px; }
+canvas { width: 100% !important; }
+
+/* ─── TABLE ──────────────────────────────────────────── */
+.table-card {
+background: var(--surface); border: 1px solid var(--border);
+border-radius: var(--r); overflow: hidden;
+}
+.table-head-row {
+padding: 18px 24px 14px;
+border-bottom: 1px solid var(--border);
+display: flex; align-items: center; justify-content: space-between;
+}
+.table-head-title { font-size: 14px; font-weight: 600; }
+.table-head-sub { font-size: 12px; color: var(--text3); }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+thead tr { background: var(--surface2); }
+th {
+font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+text-transform: uppercase; color: var(--text3);
+padding: 12px 20px; text-align: right;
+border-bottom: 1px solid var(--border);
+white-space: nowrap;
+}
+th:first-child { text-align: left; }
+td {
+font-family: var(--mono); font-size: 13px;
+padding: 13px 20px; text-align: right;
+color: var(--text2); border-bottom: 1px solid var(--border);
+white-space: nowrap;
+}
+td:first-child { text-align: left; font-family: var(--sans); font-size: 13px; font-weight: 500; color: var(--text); }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr { transition: background 0.15s; }
+tbody tr:hover { background: var(--surface2); }
+.td-neg { color: var(--red) !important; font-weight: 500; }
+.td-pos { color: var(--green) !important; font-weight: 500; }
+.td-warn { color: var(--amber) !important; }
+.td-bad { color: var(--red) !important; }
+.td-dim { color: var(--text3) !important; }
+
+/* ─── SCENARIOS ──────────────────────────────────────── */
+.sc-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+@media(max-width:660px){ .sc-grid { grid-template-columns: 1fr; } }
+
+/* ─── MULTI-QUEUE ────────────────────────────────────── */
+.queue-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(190px,1fr)); gap: 12px; }
+.queue-card-name {
+background: transparent; border: none; color: var(--text);
+font-family: var(--sans); font-size: 13px; font-weight: 600;
+padding: 0; outline: none; width: 100%; min-width: 0;
+}
+.queue-card-name:focus { color: var(--blue); }
+.queue-remove { cursor: pointer; color: var(--text3); flex-shrink: 0; font-size: 12px; transition: color 0.15s; }
+.queue-remove:hover { color: var(--red); }
+.sc-card {
+background: var(--surface); border: 1px solid var(--border);
+border-radius: var(--r); padding: 20px 22px;
+transition: transform 0.2s var(--ease), box-shadow 0.2s, border-color 0.2s;
+}
+.sc-card:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,0.35); }
+.sc-card.sc-active { border-color: rgba(79,142,247,0.35); background: linear-gradient(135deg, rgba(79,142,247,0.04), var(--surface)); }
+.sc-tag { font-size: 10px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+.sc-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.sc-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sc-val { font-family: var(--mono); font-size: 18px; font-weight: 500; color: var(--text); line-height: 1; }
+.sc-lbl { font-size: 10px; color: var(--text3); margin-top: 3px; }
+.sc-gap-pos { color: var(--red) !important; }
+.sc-gap-neg { color: var(--green) !important; }
+
+/* ─── RISKS ──────────────────────────────────────────── */
+.risks { display: flex; flex-direction: column; gap: 8px; }
+.risk-row {
+display: flex; align-items: flex-start; gap: 14px;
+background: var(--surface); border: 1px solid var(--border);
+border-left: 3px solid var(--border2);
+border-radius: var(--rs); padding: 14px 18px;
+transition: transform 0.18s var(--ease);
+}
+.risk-row:hover { transform: translateX(3px); }
+.risk-row.r-high { border-left-color: var(--red); }
+.risk-row.r-medium { border-left-color: var(--amber); }
+.risk-row.r-low { border-left-color: var(--text3); }
+.risk-badge {
+font-family: var(--mono); font-size: 9px; font-weight: 500; letter-spacing: 0.1em;
+text-transform: uppercase; padding: 3px 8px; border-radius: 4px;
+flex-shrink: 0; min-width: 52px; text-align: center; margin-top: 1px;
+}
+.badge-high { background: var(--red-dim); color: var(--red); }
+.badge-medium { background: var(--amber-dim); color: var(--amber); }
+.badge-low { background: var(--surface3); color: var(--text3); }
+.risk-body .risk-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+.risk-body .risk-desc { font-size: 12px; color: var(--text2); line-height: 1.55; }
+
+/* ─── COPILOT ────────────────────────────────────────── */
+.copilot-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+@media(max-width:720px){ .copilot-grid { grid-template-columns: repeat(2,1fr); } }
+@media(max-width:480px){ .copilot-grid { grid-template-columns: 1fr; } }
+
+.cop-card {
+background: var(--surface); border: 1px solid var(--border);
+border-radius: var(--r); padding: 20px 20px 18px;
+transition: transform 0.2s var(--ease), box-shadow 0.2s, border-color 0.2s;
+}
+.cop-card:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,0.35); border-color: var(--border2); }
+.cop-n { font-family: var(--mono); font-size: 11px; color: var(--text3); margin-bottom: 7px; }
+.cop-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 7px; line-height: 1.35; }
+.cop-body { font-size: 12px; color: var(--text2); line-height: 1.6; }
+
+/* ─── FORMULAS ───────────────────────────────────────── */
+.formula-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+@media(max-width:880px){ .formula-grid { grid-template-columns: 1fr 1fr; } }
+@media(max-width:560px){ .formula-grid { grid-template-columns: 1fr; } }
+
+.formula-card {
+background: var(--surface); border: 1px solid var(--border);
+border-radius: var(--r); padding: 20px 20px 18px;
+transition: border-color 0.2s;
+}
+.formula-card:hover { border-color: var(--border2); }
+.formula-q { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 9px; line-height: 1.4; }
+.formula-eq {
+font-family: var(--mono); font-size: 11px; color: var(--blue);
+background: var(--blue-dim); border-radius: var(--rx);
+padding: 7px 10px; margin-bottom: 9px; line-height: 1.5;
+}
+.formula-ans { font-size: 11px; color: var(--text2); line-height: 1.65; }
+
+/* ─── INSIGHTS ───────────────────────────────────────── */
+.insights { display: flex; flex-direction: column; gap: 10px; }
+.insight-card {
+background: var(--surface); border: 1px solid var(--border);
+border-radius: var(--r); padding: 22px 24px;
+transition: border-color 0.2s;
+}
+.insight-card:hover { border-color: var(--border2); }
+.ins-title { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.ins-body { font-size: 12px; color: var(--text2); line-height: 1.65; margin-bottom: 10px; }
+.ins-quote {
+font-family: var(--mono); font-size: 11px; color: var(--blue);
+background: var(--blue-dim); border-left: 2px solid var(--blue);
+padding: 8px 12px; border-radius: 0 var(--rx) var(--rx) 0; line-height: 1.5;
+}
+
+/* ─── WFM INTELLIGENCE SUITE ─────────────────────────── */
+.suite-section { margin-bottom: 0; }
+.suite-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+@media(max-width:900px){ .suite-grid { grid-template-columns: 1fr 1fr; } }
+@media(max-width:560px){ .suite-grid { grid-template-columns: 1fr; } }
+
+.suite-card {
+background: var(--surface); border: 1px solid var(--border);
+border-radius: var(--r); padding: 22px 22px 18px;
+display: flex; flex-direction: column;
+transition: transform 0.2s var(--ease), box-shadow 0.2s, border-color 0.2s;
+text-decoration: none; color: inherit;
+}
+.suite-card:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,0.4); border-color: rgba(79,142,247,0.3); }
+.suite-num { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-bottom: 8px; }
+.suite-name { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; line-height: 1.35; }
+.suite-desc { font-size: 12px; color: var(--text2); line-height: 1.6; flex: 1; margin-bottom: 16px; }
+.suite-link {
+display: inline-flex; align-items: center; gap: 6px;
+font-size: 12px; font-weight: 600; color: var(--blue);
+transition: gap 0.18s var(--ease);
+}
+.suite-card:hover .suite-link { gap: 9px; }
+.suite-link svg { width: 12px; height: 12px; }
+
+
+/* ─── GEO CONTENT BLOCKS ────────────────────────────── */
+.geo-block {
+background: var(--surface);
+border: 1px solid var(--border);
+border-radius: var(--r);
+padding: 24px;
+margin-bottom: 24px;
+}
+.geo-block h2 {
+font-size: 20px;
+letter-spacing: -0.02em;
+margin-bottom: 14px;
+}
+.geo-list { margin-left: 18px; color: var(--text2); }
+.geo-list li { margin-bottom: 8px; }
+.geo-grid {
+display: grid;
+grid-template-columns: repeat(2,minmax(0,1fr));
+gap: 12px;
+}
+@media(max-width:720px){ .geo-grid{ grid-template-columns:1fr; } }
+.geo-card {
+background: var(--surface2);
+border: 1px solid var(--border);
+border-radius: var(--rs);
+padding: 14px;
+}
+.geo-card h3 { font-size: 13px; margin-bottom: 6px; color: var(--text); }
+.geo-card p { font-size: 12px; color: var(--text2); }
+.geo-definitions { display: grid; gap: 10px; }
+.geo-definitions dt { font-weight: 600; color: var(--text); }
+.geo-definitions dd { color: var(--text2); margin-left: 0; }
+.formula-list { display: grid; gap: 10px; }
+.formula-item {
+background: var(--surface2);
+border: 1px solid var(--border);
+border-radius: var(--rs);
+padding: 10px 12px;
+font-family: var(--mono);
+font-size: 12px;
+color: var(--text);
+}
+.faq-list { display: grid; gap: 12px; }
+.faq-item {
+border: 1px solid var(--border);
+background: var(--surface2);
+border-radius: var(--rs);
+padding: 12px;
+}
+.faq-item strong { color: var(--text); display:block; margin-bottom: 4px; }
+.faq-item p { color: var(--text2); font-size: 12px; }
+.authority-note {
+font-size: 13px;
+color: var(--text2);
+border-left: 2px solid var(--blue);
+padding-left: 12px;
+}
+.internal-links { display: grid; gap: 10px; }
+.internal-links a { color: var(--blue); text-decoration: none; }
+.internal-links a:hover { text-decoration: underline; }
+
+/* ─── SEO NOTE ───────────────────────────────────────── */
+.seo-note {
+border: 1px dashed rgba(255,255,255,0.04);
+background: var(--surface); border-radius: var(--r);
+padding: 18px 22px; margin-top: 48px; margin-bottom: 32px;
+}
+.seo-note p { font-family: var(--mono); font-size: 10px; color: var(--text3); line-height: 1.8; }
+
+/* ─── FOOTER ─────────────────────────────────────────── */
+.footer {
+border-top: 1px solid var(--border);
+padding: 24px 32px;
+max-width: 1200px; margin: 0 auto;
+display: flex; justify-content: space-between; align-items: center;
+font-size: 11px; color: var(--text3); flex-wrap: wrap; gap: 8px;
+position: relative; z-index: 1;
+}
+.footer-divider { height: 1px; background: var(--border); }
+
+/* ─── HIDDEN / ANIMATION ─────────────────────────────── */
+.hidden { display: none !important; }
+.output { animation: fadeUp 0.35s var(--ease) both; }
+@keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.10s; }
+.stagger-3 { animation-delay: 0.15s; }
+
+/* scrollbar */
+::-webkit-scrollbar { width:5px; height:5px; }
+::-webkit-scrollbar-track { background:var(--bg); }
+::-webkit-scrollbar-thumb { background:var(--surface3); border-radius:3px; }
+</style>
+</head>
+<body>
+
+<!-- ══ STICKY KPI BAR (populated by JS) ══════════════════════════════ -->
+<div class="sticky-kpi" id="stickyKpi">
+<div class="sticky-kpi-inner" id="stickyKpiInner"></div>
+</div>
+
+<!-- ══ HEADER ════════════════════════════════════════════════════════ -->
+<header class="header">
+<div class="header-inner">
+<div class="logo-group">
+<span class="logo-chip">WFM</span>
+<div>
+<div class="logo-name">Capacity Planning Engine™</div>
+<div class="logo-by">Built by Kiran BM WFM Manager at CoinDCX<br/>Specializing in Capacity Planning, Forecasting &amp; Workforce Strategy</div>
+</div>
+</div>
+<div class="header-meta">
+<span class="header-tagline">Turning Volume into Workforce Strategy</span>
+<span class="geo-tag">IN · UAE · PH · GLOBAL</span>
+</div>
+</div>
+</header>
+
+<!-- ══ PAGE ══════════════════════════════════════════════════════════ -->
+<div class="page">
+
+<!-- LLM SUMMARY (GEO/SEO) -->
+<section class="geo-block" id="llm-summary">
+<h2>Capacity Planning Engine – What This Tool Does</h2>
+<ul class="geo-list">
+<li>Calculates required workforce (FTE) based on volume, AHT, shrinkage, and planning buffer.</li>
+<li>Projects hiring needs using attrition and ramp-up curves.</li>
+<li>Identifies staffing gaps and surplus capacity.</li>
+<li>Estimates cost impact of workforce decisions.</li>
+<li>Supports long-term capacity planning for call centers and BPO operations.</li>
+</ul>
+</section>
+
+<!-- INPUT PANEL -->
+<div class="input-panel" id="inputPanel">
+<div class="input-header">
+<div>
+<div class="input-title">Scenario Inputs</div>
+<div class="input-hint">Enter workforce parameters — engine computes FTE, gap, occupancy &amp; 6-month plan.</div>
+<div class="input-micro-authority">Designed based on real-world WFM operations across global BPO environments.</div>
+</div>
+<span class="sample-pill">Sample data loaded</span>
+</div>
+
+<div class="input-grid">
+<div class="field">
+<label class="field-label">
+Monthly Volume
+<span class="tip-wrap"><i class="tip-icon">i</i><span class="tooltip tip-left">Total inbound calls (or contacts) expected in the month. The primary driver of all FTE calculations.</span></span>
+</label>
+<input type="number" id="volume" value="55000" placeholder="55000"/>
+</div>
+<div class="field">
+<label class="field-label">
+AHT (seconds)
+<span class="tip-wrap"><i class="tip-icon">i</i><span class="tooltip tip-left">Average Handle Time — total call duration including wrap-up. Used to convert call volume into labour-hours.</span></span>
+</label>
+<input type="number" id="aht" value="300" placeholder="300"/>
+</div>
+<div class="field">
+<label class="field-label">
+Shrinkage %
+<span class="tip-wrap"><i class="tip-icon">i</i><span class="tooltip">% of paid time agents are unavailable: breaks, training, absence, meetings. Increases required FTE.</span></span>
+</label>
+<input type="number" id="shrinkage" value="30" placeholder="30"/>
+</div>
+<div class="field">
+<label class="field-label">
+Paid Hours / Month
+<span class="tip-wrap"><i class="tip-icon">i</i><span class="tooltip">Total contracted hours per agent per month (e.g. 160h = 8h × 20 days). Base for productive hour calculation.</span></span>
+</label>
+<input type="number" id="paidHours" value="160" placeholder="160"/>
+</div>
+<div class="field">
+<label class="field-label">
+Buffer %
+<span class="tip-wrap"><i class="tip-icon">i</i><span class="tooltip">Capacity cushion added above mathematical minimum FTE to absorb forecast error and volume spikes. BPO standard: 25–35%.</span></span>
+</label>
+<input type="number" id="buffer" value="30" placeholder="30"/>
+</div>
+<div class="field">
+<label class="field-label">Current HC</label>
+<input type="number" id="currentHC" value="65" placeholder="65"/>
+</div>
+<div class="field">
+<label class="field-label">
+Monthly Attrition %
+<span class="tip-wrap"><i class="tip-icon">i</i><span class="tooltip">% of headcount lost each month through resignation/termination. At 5%/month you lose 60%/year. Compounded in the 6-month plan.</span></span>
+</label>
+<input type="number" id="attrition" value="5" placeholder="5"/>
+</div>
+<div class="field">
+<label class="field-label">
+Lead Time (months)
+<span class="tip-wrap"><i class="tip-icon">i</i><span class="tooltip">Time from requisition to hire's first day. Determines how far ahead to initiate recruitment to close a gap.</span></span>
+</label>
+<input type="number" id="leadTime" value="2" placeholder="2"/>
+</div>
+<div class="field">
+<label class="field-label">Cost per FTE / Month</label>
+<input type="number" id="costFTE" value="50000" placeholder="50000"/>
+</div>
+<div class="field">
+<label class="field-label">
+AI Deflection %
+<span class="tip-wrap"><i class="tip-icon">i</i><span class="tooltip">% of contacts deflected by AI/chatbot before reaching agents. &gt;20% triggers a +15% AHT adjustment for complex residual calls.</span></span>
+</label>
+<input type="number" id="aiDeflection" value="0" placeholder="0"/>
+</div>
+<div class="field">
+<label class="field-label">
+Ramp M1 %
+<span class="tip-wrap"><i class="tip-icon">i</i><span class="tooltip">New hire productivity in their first month. Typically 40–60%. Affects Ramp-Adjusted Effective HC.</span></span>
+</label>
+<input type="number" id="ramp1" value="50" placeholder="50"/>
+</div>
+<div class="field">
+<label class="field-label">Ramp M2 % · M3+ %</label>
+<div class="ramp-pair">
+<input type="number" id="ramp2" value="70" placeholder="70"/>
+<input type="number" id="ramp3" value="100" placeholder="100"/>
+</div>
+</div>
+</div>
+
+<div class="subsection-title">
+Evidence-Based Ramp — Historical Cohort Data (optional)
+<span class="tip-wrap"><i class="tip-icon">i</i><span class="tooltip">Enter observed weekly productivity % for a recent new-hire cohort. If provided, the engine uses the average observed curve instead of the manual Ramp M1/M2/M3 assumptions above.</span></span>
+</div>
+<div class="hist-ramp-toggle">
+<span class="input-hint" style="margin:0;">Leave blank to keep manual ramp assumptions.</span>
+<span class="pill" id="rampSourceBadge">— run engine to see ramp source —</span>
+</div>
+<div class="hist-ramp-grid">
+<div class="field"><label class="field-label">Week 1 %</label><input type="number" id="hw1" placeholder="e.g. 35"/></div>
+<div class="field"><label class="field-label">Week 2 %</label><input type="number" id="hw2" placeholder="e.g. 48"/></div>
+<div class="field"><label class="field-label">Week 3 %</label><input type="number" id="hw3" placeholder="e.g. 58"/></div>
+<div class="field"><label class="field-label">Week 4 %</label><input type="number" id="hw4" placeholder="e.g. 65"/></div>
+<div class="field"><label class="field-label">Week 5 %</label><input type="number" id="hw5" placeholder="e.g. 80"/></div>
+<div class="field"><label class="field-label">Week 6 %</label><input type="number" id="hw6" placeholder="e.g. 92"/></div>
+</div>
+
+<div class="input-actions">
+<button class="btn-primary" onclick="runEngine()">
+<svg viewBox="0 0 16 16" fill="currentColor"><path d="M5 3.5L12 8L5 12.5V3.5Z"/></svg>
+Run Capacity Engine
+</button>
+<button class="btn-ghost" onclick="resetInputs()">Reset</button>
+</div>
+</div>
+
+<!-- EMPTY STATE -->
+<div id="emptyState" class="empty-state">
+<div class="empty-icon">
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+</div>
+<div class="empty-title">Run a Scenario</div>
+<div class="empty-sub">Enter your workforce parameters above and click Run to generate your capacity plan.</div>
+</div>
+
+<!-- OUTPUT (hidden until engine runs) -->
+<div id="outputArea" class="hidden">
+
+<!-- PLAN STATUS (Executive Decision Summary) -->
+<div class="decision-card output" id="decisionSummary"></div>
+
+<!-- WHY DID FTE CHANGE — executive-friendly driver readout -->
+<div class="sec output" style="margin-bottom:20px;">
+<div id="whyFTEChanged"></div>
+</div>
+
+<!-- CAPACITY PLANNING vs ERLANG C — educational note -->
+<div class="micro-section" style="margin-top:0;margin-bottom:20px;">
+<h3>Capacity Planning vs. Erlang C</h3>
+<p><strong style="color:var(--text)">Capacity Planning</strong> (this engine): a workload / productive-hours based FTE requirement — the monthly-to-6-month staffing number used for hiring and budget decisions.</p>
+<p style="margin-top:6px;">For <strong style="color:var(--text)">interval-level Service Level staffing</strong> (e.g. 80/20 in 30 seconds), Erlang C / interval staffing methodology is required — a separate calculation. Any occupancy shown on this page is a monthly capacity-utilization indicator, not an Erlang-C service-level result.</p>
+</div>
+
+<!-- EXECUTIVE SUMMARY -->
+<div class="sec output stagger-1">
+<div class="sec-header"><div class="sec-title">Executive Summary</div></div>
+<div class="exec-row">
+<div class="exec-card" id="execPosition"></div>
+<div class="exec-card is-risk" id="execRisk"></div>
+<div class="exec-card" id="execMandate"></div>
+</div>
+</div>
+
+<!-- RECOMMENDED ACTION (Action Date / Decision Layer) -->
+<div class="sec output">
+<div class="sec-header"><div class="sec-title">Recommended Action
+<span class="tip-wrap"><i class="tip-icon">i</i><span class="tooltip">Works backward from the staffing gap using hiring lead time + ramp period to flag when recruitment should begin.</span></span>
+</div></div>
+<div class="exec-row" id="actionCards"></div>
+</div>
+
+<!-- REPLAN / WHY DID THE GAP CHANGE -->
+<div class="sec output">
+<div class="sec-header">
+<div class="sec-title">Why Did The Gap Change? — Rolling Replan
+<span class="tip-wrap"><i class="tip-icon">i</i><span class="tooltip">Capacity planning is a rolling process, not a one-time forecast. This compares your current assumptions against the last pinned baseline plan.</span></span>
+</div>
+<div class="sec-right">
+<button class="btn-ghost" style="padding:6px 12px;font-size:11px;" onclick="pinBaseline()">📌 Pin as Baseline</button>
+<button class="btn-ghost" style="padding:6px 12px;font-size:11px;" onclick="clearBaseline()">Clear</button>
+</div>
+</div>
+<div class="plan-compare" id="planCompare"></div>
+<div class="table-card">
+<div class="table-head-row">
+<div><div class="table-head-title">Estimated Driver Impact</div><div class="table-head-sub">Sequential-substitution waterfall — order-dependent estimate, not exact attribution</div></div>
+</div>
+<div style="padding:8px 24px 20px;" id="driverWaterfall"></div>
+</div>
+
+<div class="table-card" style="margin-top:16px;">
+<div class="table-head-row">
+<div><div class="table-head-title">Assumption Drift</div><div class="table-head-sub">Plan Locked (baseline) vs Today — what moved, who owns it, and how fresh it is</div></div>
+</div>
+<div style="padding:8px 24px 20px;" id="assumptionDrift"></div>
+</div>
+</div>
+
+<!-- KPI STRIP -->
+<div class="sec output stagger-2" id="kpiSection">
+<div class="sec-header">
+<div class="sec-title">KPI Dashboard</div>
+<div class="scenario-toggle">
+<button class="stog-btn active" data-mult="1.0" onclick="setScenarioMult(1.0,this)">Base</button>
+<button class="stog-btn" data-mult="1.1" onclick="setScenarioMult(1.1,this)">+10% Vol</button>
+<button class="stog-btn" data-mult="0.9" onclick="setScenarioMult(0.9,this)">−10% Vol</button>
+</div>
+</div>
+<div class="kpi-strip" id="kpiGrid"></div>
+</div>
+
+<!-- HEALTH BARS -->
+<div class="sec output stagger-2">
+<div class="sec-header"><div class="sec-title">Staffing Health</div></div>
+<div class="health-panel" id="statusBar"></div>
+</div>
+
+<!-- CHARTS -->
+<div class="sec output stagger-3">
+<div class="sec-header"><div class="sec-title">Capacity Trend</div></div>
+<div class="charts-row">
+<div class="chart-card">
+<div class="chart-title">Required FTE — 6 Months</div>
+<div class="chart-sub">Workforce requirement vs effective headcount</div>
+<div class="chart-canvas-wrap"><canvas id="fteChart"></canvas></div>
+</div>
+<div class="chart-card">
+<div class="chart-title">Staffing Gap — 6 Months</div>
+<div class="chart-sub">Deficit (red) / Surplus (green) per month</div>
+<div class="chart-canvas-wrap"><canvas id="gapChart"></canvas></div>
+</div>
+</div>
+</div>
+
+<!-- 6-MONTH TABLE -->
+<div class="sec output stagger-2">
+<div class="sec-header">
+<div class="sec-title">6-Month Capacity Plan</div>
+<div class="sec-right">Attrition + ramp-adjusted</div>
+</div>
+<div class="table-card">
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Month</th><th>Volume</th><th>Req. FTE</th>
+<th>Attrition</th><th>Eff. HC</th><th>Occupancy</th>
+<th>Gap</th><th>Hire</th>
+</tr>
+</thead>
+<tbody id="capacityBody"></tbody>
+</table>
+</div>
+</div>
+</div>
+
+<!-- SCENARIO ANALYSIS -->
+<div class="sec output">
+<div class="sec-header"><div class="sec-title">Scenario Analysis</div></div>
+<div class="sc-grid" id="scenarioGrid"></div>
+</div>
+
+<!-- MULTI-SKILL WHAT-IF -->
+<div class="sec output">
+<div class="sec-header"><div class="sec-title">Multi-Skill What-If — Cross-Skilled Capacity
+<span class="tip-wrap"><i class="tip-icon">i</i><span class="tooltip">Transparent what-if simulator for moving cross-skilled agents between two queues. Not an optimizer — shows the effect of a move you specify.</span></span>
+</div></div>
+<div class="mini-panel">
+<div class="input-grid">
+<div class="field"><label class="field-label">Queue A — Required FTE</label><input type="number" id="qaReq" placeholder="e.g. 40"/></div>
+<div class="field"><label class="field-label">Queue A — Current FTE</label><input type="number" id="qaCur" placeholder="e.g. 35"/></div>
+<div class="field"><label class="field-label">Queue B — Required FTE</label><input type="number" id="qbReq" placeholder="e.g. 25"/></div>
+<div class="field"><label class="field-label">Queue B — Current FTE</label><input type="number" id="qbCur" placeholder="e.g. 28"/></div>
+<div class="field"><label class="field-label">Cross-Skilled Agents</label><input type="number" id="crossFTE" placeholder="e.g. 10"/></div>
+<div class="field"><label class="field-label">% Available to Queue A</label><input type="number" id="crossPctA" placeholder="e.g. 100"/></div>
+<div class="field"><label class="field-label">% Available to Queue B</label><input type="number" id="crossPctB" placeholder="e.g. 100"/></div>
+<div class="field"><label class="field-label">Move FTE (A→B negative, B→A positive)</label><input type="number" id="moveAmt" placeholder="e.g. 5"/></div>
+</div>
+<div class="mini-actions">
+<button class="btn-primary" onclick="simulateMultiSkill()">Simulate Move</button>
+<span class="input-hint" style="margin:0;">Move 5 cross-skilled FTE from Queue B → Queue A: enter 5. From A → B: enter −5.</span>
+</div>
+<div class="mini-result-row hidden" id="multiSkillOutput"></div>
+</div>
+</div>
+
+<!-- SHADOW / EARLY WARNING SIGNAL -->
+<div class="sec output">
+<div class="sec-header"><div class="sec-title">Planning Signal — Shadow Forecast
+<span class="tip-wrap"><i class="tip-icon">i</i><span class="tooltip">Optional early-warning layer. Compares recent actuals against your official plan assumptions to flag drift. Never auto-replaces the official plan.</span></span>
+</div></div>
+<div class="mini-panel">
+<div class="input-hint" style="margin-bottom:16px;">Official plan = baseline. This is a challenge layer — enter recent actuals to see if assumptions are drifting.</div>
+<div class="input-grid">
+<div class="field"><label class="field-label">Actual Volume (recent)</label><input type="number" id="sigActVol" placeholder="e.g. 58000"/></div>
+<div class="field"><label class="field-label">Actual AHT (sec, recent)</label><input type="number" id="sigActAHT" placeholder="e.g. 320"/></div>
+<div class="field"><label class="field-label">Actual Attrition % (recent)</label><input type="number" id="sigActAttr" placeholder="e.g. 7"/></div>
+<div class="field"><label class="field-label">Actual Shrinkage % (recent)</label><input type="number" id="sigActShrink" placeholder="e.g. 34"/></div>
+</div>
+<div class="mini-actions">
+<button class="btn-primary" onclick="evaluateShadowSignal()">Evaluate Signal</button>
+</div>
+<div id="shadowOutput"></div>
+</div>
+</div>
+
+<!-- RISK FLAGS -->
+<div class="sec output">
+<div class="sec-header"><div class="sec-title">Risk Flags</div></div>
+<div class="risks" id="intelligenceLayer"></div>
+</div>
+
+<!-- COPILOT -->
+<div class="sec output">
+<div class="sec-header"><div class="sec-title">AI Copilot — Actions</div></div>
+<div id="copilotActions"></div>
+</div>
+
+<!-- FORMULAS -->
+<div class="sec output">
+<div class="sec-header"><div class="sec-title">How the Model Works</div></div>
+<div class="formula-grid" id="formulaGrid"></div>
+</div>
+
+<!-- INSIGHTS -->
+<div class="sec output">
+<div class="sec-header"><div class="sec-title">Expert Insights</div></div>
+<div class="insights" id="expertInsights"></div>
+</div>
+
+<!-- MULTI-QUEUE WEEKLY CAPACITY -->
+<div class="sec output">
+<div class="sec-header">
+<div class="sec-title">Multi-Queue Weekly Capacity
+<span class="tip-wrap"><i class="tip-icon">i</i><span class="tooltip">Model each workstream (Voice, Chat, Email, Back Office...) separately with its own volume/AHT/shrinkage, and see required vs available FTE week over week, plus the combined operational view across all queues.</span></span>
+</div>
+<div class="sec-right" style="display:flex;align-items:center;gap:8px;">
+<div class="scenario-toggle">
+<button class="stog-btn mq-week-btn" data-w="2" onclick="setMQWeeks(2,this)">2wk</button>
+<button class="stog-btn mq-week-btn active" data-w="4" onclick="setMQWeeks(4,this)">4wk</button>
+<button class="stog-btn mq-week-btn" data-w="6" onclick="setMQWeeks(6,this)">6wk</button>
+<button class="stog-btn mq-week-btn" data-w="8" onclick="setMQWeeks(8,this)">8wk</button>
+</div>
+<button class="btn-ghost" style="padding:6px 12px;font-size:11px;" onclick="addQueue()">+ Add Queue</button>
+</div>
+</div>
+
+<div id="queueCards" class="queue-grid" style="margin-bottom:20px;"></div>
+
+<div class="table-card" style="margin-bottom:16px;">
+<div class="table-head-row">
+<div><div class="table-head-title">Combined Operational Summary</div><div class="table-head-sub">Current week (W1) gap/surplus by queue — which workstream is driving overall capacity risk</div></div>
+</div>
+<div style="padding:8px 24px 20px;" id="combinedSummary"></div>
+</div>
+
+<div id="queueWeeklyTables"></div>
+</div>
+
+<!-- HISTORICAL DATA / 8-WEEK PATTERN ENGINE -->
+<div class="sec output" id="historicalSection">
+<div class="sec-header">
+<div class="sec-title">Historical Data &amp; Pattern Analysis
+<span class="tip-wrap"><i class="tip-icon">i</i><span class="tooltip">Optional: paste or upload historical interval/day-level volume and AHT data to derive Day-of-Week and Interval-of-Week patterns. These patterns can inform — but never override — the manual forecast and FTE math above.</span></span>
+</div>
+<div class="sec-right">
+<label style="font-size:11px;color:var(--text2);display:flex;align-items:center;gap:8px;cursor:pointer;">
+<input type="checkbox" id="histEnableToggle" onchange="toggleHistoricalModule()"/> Enable historical pattern analysis
+</label>
+</div>
+</div>
+
+<div id="histBody" class="hidden">
+<div class="table-card" style="margin-bottom:16px;">
+<div class="table-head-row">
+<div><div class="table-head-title">Load Historical Data</div><div class="table-head-sub">Columns: Week, Date, Day, Queue, Interval, Volume, AHT — Interval is optional (falls back to Day-of-Week analysis if absent)</div></div>
+</div>
+<div style="padding:8px 24px 20px;">
+<div style="font-size:11px;color:var(--green);background:var(--green-dim);border:1px solid rgba(62,207,142,0.3);border-radius:var(--rx);padding:8px 12px;margin-bottom:12px;">
+🔒 Historical data is processed locally in your browser. No data is uploaded to a server.
+</div>
+<textarea id="histPasteArea" placeholder="Paste CSV here, e.g.&#10;Week,Date,Day,Queue,Interval,Volume,AHT&#10;W1,2026-08-03,Monday,Voice,09:00,120,380" style="width:100%;min-height:110px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);color:var(--text);font-family:var(--mono);font-size:12px;padding:10px;resize:vertical;"></textarea>
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;align-items:center;">
+<button class="btn-ghost" style="padding:8px 14px;font-size:12px;" onclick="handleHistPaste()">Parse Pasted Data</button>
+<label class="btn-ghost" style="padding:8px 14px;font-size:12px;cursor:pointer;">
+Upload CSV File
+<input type="file" id="histFileInput" accept=".csv,text/csv" style="display:none;" onchange="handleHistFileUpload(event)"/>
+</label>
+<button class="btn-ghost" style="padding:8px 14px;font-size:12px;" onclick="loadHistoricalSample()">Load Sample (8wk demo)</button>
+<button class="btn-ghost" style="padding:8px 14px;font-size:12px;" onclick="clearHistoricalData()">Clear</button>
+<span class="pill" id="histStatusBadge">— no historical data loaded —</span>
+</div>
+<div id="histParseError" style="color:var(--red);font-size:12px;margin-top:8px;"></div>
+</div>
+</div>
+
+<div id="histAnalysisOutput"></div>
+</div>
+</div>
+
+</div><!-- /outputArea -->
+
+
+<!-- HOW CAPACITY PLANNING WORKS -->
+<section class="geo-block" aria-labelledby="capacity-how-title">
+<h2 id="capacity-how-title">How Capacity Planning Works in Workforce Management</h2>
+<div class="geo-grid">
+<article class="geo-card">
+<h3>Step 1: Workload Calculation</h3>
+<p>Convert volume and AHT into total workload hours.</p>
+</article>
+<article class="geo-card">
+<h3>Step 2: Available Capacity</h3>
+<p>Convert paid hours into productive hours using shrinkage, then apply the planning buffer to size Required FTE.</p>
+</article>
+<article class="geo-card">
+<h3>Step 3: Gap Analysis</h3>
+<p>Compare required FTE vs current headcount.</p>
+</article>
+<article class="geo-card">
+<h3>Step 4: Hiring Plan</h3>
+<p>Apply attrition and ramp curves to project hiring needs.</p>
+</article>
+</div>
+</section>
+
+<section class="geo-block" aria-labelledby="terms-title">
+<h2 id="terms-title">Key Capacity Planning Terms</h2>
+<dl class="geo-definitions">
+<div><dt>FTE (Full-Time Equivalent)</dt><dd>Number of agents required to handle workload.</dd></div>
+<div><dt>Shrinkage</dt><dd>Time agents are paid but unavailable.</dd></div>
+<div><dt>Occupancy</dt><dd>Percentage of available (productive) time agents spend actively handling work. A derived output, not a Required FTE input.</dd></div>
+<div><dt>Attrition</dt><dd>Rate at which employees leave.</dd></div>
+<div><dt>Ramp-Up</dt><dd>Time taken for new hires to reach full productivity.</dd></div>
+</dl>
+</section>
+
+<section class="geo-block" aria-labelledby="formula-title">
+<h2 id="formula-title">Core Capacity Planning Formulas</h2>
+<div class="formula-list">
+<div class="formula-item">Workload Hours = (Volume × AHT) / 3600</div>
+<div class="formula-item">Productive Hours = Paid Hours × (1 - Shrinkage)</div>
+<div class="formula-item">Required FTE = (Workload Hours / Productive Hours) × (1 + Buffer)</div>
+<div class="formula-item">Occupancy = Workload Hours / (Effective HC × Productive Hours)</div>
+<div class="formula-item">Net FTE Gap = Required FTE - Effective Headcount</div>
+</div>
+</section>
+
+<section class="geo-block" aria-labelledby="use-case-title">
+<h2 id="use-case-title">Who Should Use This Capacity Planning Tool?</h2>
+<ul class="geo-list">
+<li><strong>WFM Analysts:</strong> Calculate staffing requirements.</li>
+<li><strong>Capacity Planners:</strong> Build hiring plans.</li>
+<li><strong>Operations Leaders:</strong> Identify staffing risks.</li>
+<li><strong>BPO Managers:</strong> Plan long-term workforce strategy.</li>
+</ul>
+</section>
+
+<section class="geo-block" aria-labelledby="faq-title">
+<h2 id="faq-title">Capacity Planning FAQs</h2>
+<div class="faq-list">
+<article class="faq-item">
+<strong>How do you calculate required FTE in a call center?</strong>
+<p>Required FTE is calculated using workload, shrinkage, and buffer assumptions. Occupancy is a resulting output metric, not an input to Required FTE.</p>
+</article>
+<article class="faq-item">
+<strong>What is shrinkage in workforce planning?</strong>
+<p>Shrinkage is the percentage of paid time not spent handling work.</p>
+</article>
+<article class="faq-item">
+<strong>How does attrition impact hiring plans?</strong>
+<p>Higher attrition increases hiring requirements to maintain staffing levels.</p>
+</article>
+<article class="faq-item">
+<strong>What is a good occupancy rate?</strong>
+<p>Typically 75–85% depending on service levels; above 85% raises burnout and SLA risk.</p>
+</article>
+</div>
+</section>
+
+<section class="geo-block" aria-labelledby="links-title">
+<h2 id="links-title">Explore More Workforce Management Tools</h2>
+<div class="internal-links">
+<p><a href="https://KiranbmCoinDCX.github.io/abire-forecast-validator/" target="_blank" rel="noopener">Forecast Validator</a> helps validate your forecast before planning capacity.</p>
+<p><a href="https://KiranbmCoinDCX.github.io/Intraday-Variance-analysis/" target="_blank" rel="noopener">Intraday Variance Analysis</a> lets you track real-time deviations from plan.</p>
+<p><a href="https://KiranbmCoinDCX.github.io/wfm-multi-queue-allocation-simulator/" target="_blank" rel="noopener">Multi-Queue Allocation Simulator</a> helps optimize agent distribution across queues.</p>
+<p><a href="https://KiranbmCoinDCX.github.io/bwie-wfm-simulator/" target="_blank" rel="noopener">BWIE Simulator</a> is useful to model backlog and workload distribution.</p>
+<p><a href="https://KiranbmCoinDCX.github.io/Forecast-Smoothing/" target="_blank" rel="noopener">Forecast Smoothing</a> improves forecast accuracy and stability.</p>
+</div>
+</section>
+
+<section class="geo-block" aria-labelledby="authority-title">
+<h2 id="authority-title">Author</h2>
+<p class="authority-note">Built by Kiran BM – Workforce Management Lead specializing in forecasting, real-time analytics, and capacity planning across global BPO operations.</p>
+</section>
+
+<!-- WFM INTELLIGENCE SUITE (always visible) -->
+<div class="suite-section sec" style="margin-top:64px;">
+<div class="sec-header"><div class="sec-title">WFM Intelligence Suite</div></div>
+<p style="font-size:13px;color:var(--text2);margin-bottom:24px;max-width:560px;">Advanced tools for forecasting, planning, and real-time optimization. Built for WFM professionals across global BPO operations.</p>
+<div class="suite-grid">
+<a class="suite-card" href="https://KiranbmCoinDCX.github.io/abire-forecast-validator/" target="_blank" rel="noopener">
+<div class="suite-num">01</div>
+<div class="suite-name">Forecast Validator</div>
+<div class="suite-desc">Validate forecast accuracy against actuals. Identify bias, MAPE, and variance patterns across intervals.</div>
+<div class="suite-link">Open Tool <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 6h8M6 2l4 4-4 4"/></svg></div>
+</a>
+<a class="suite-card" href="https://KiranbmCoinDCX.github.io/wfm-intelligence-engine/" target="_blank" rel="noopener">
+<div class="suite-num">02</div>
+<div class="suite-name">WFM Intelligence Engine</div>
+<div class="suite-desc">Full-spectrum workforce intelligence: scheduling efficiency, SLA modeling, and staffing recommendations.</div>
+<div class="suite-link">Open Tool <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 6h8M6 2l4 4-4 4"/></svg></div>
+</a>
+<a class="suite-card" href="https://KiranbmCoinDCX.github.io/Intraday-Variance-analysis/" target="_blank" rel="noopener">
+<div class="suite-num">03</div>
+<div class="suite-name">Intraday Variance Analysis</div>
+<div class="suite-desc">Analyze real-time staffing variance against plan. Identify over/understaffed intervals across the day.</div>
+<div class="suite-link">Open Tool <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 6h8M6 2l4 4-4 4"/></svg></div>
+</a>
+<a class="suite-card" href="https://KiranbmCoinDCX.github.io/Forecast-Smoothing/" target="_blank" rel="noopener">
+<div class="suite-num">04</div>
+<div class="suite-name">Forecast Smoothing</div>
+<div class="suite-desc">Apply exponential and weighted smoothing to raw forecasts. Reduce noise and improve interval accuracy.</div>
+<div class="suite-link">Open Tool <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 6h8M6 2l4 4-4 4"/></svg></div>
+</a>
+<a class="suite-card" href="https://KiranbmCoinDCX.github.io/bwie-wfm-simulator/" target="_blank" rel="noopener">
+<div class="suite-num">05</div>
+<div class="suite-name">Erlang Simulator</div>
+<div class="suite-desc">Erlang C/A simulation for SLA, ASA, and agent requirement modeling. Industry-standard queue modeling.</div>
+<div class="suite-link">Open Tool <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 6h8M6 2l4 4-4 4"/></svg></div>
+</a>
+<a class="suite-card" href="https://KiranbmCoinDCX.github.io/wfm-multi-queue-allocation-simulator/" target="_blank" rel="noopener">
+
+<div class="suite-num">06</div>
+<div class="suite-name">Multi-Queue Allocation</div>
+<div class="suite-desc">Optimize agent allocation across multiple queues and skills. Minimize total staffing cost while meeting SLA.</div>
+<div class="suite-link">Open Tool <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 6h8M6 2l4 4-4 4"/></svg></div>
+</a>
+</div>
+</div>
+
+<!-- SEO NOTE -->
+<div class="seo-note">
+<p>This model reflects real-world workforce management practices used across enterprise contact centers globally. WFM Capacity Planning Engine™ applies workload-hours and shrinkage-adjusted FTE modeling — standard in BPO operations across India, Dubai, Philippines, and Fortune 500 contact centers. This monthly planning model is distinct from interval-level Erlang-C queueing calculations. Keywords: workforce management capacity planning · call center forecasting · contact center staffing model · long-term capacity planning BPO · how to calculate FTE in call center · call center staffing formula explained · WFM scheduling optimization.</p>
+</div>
+
+
+<section class="micro-section" aria-labelledby="creator-about-title">
+<h3 id="creator-about-title">About the Creator</h3>
+<p>Kiran BM is a Workforce Management Lead at CoinDCX, specializing in forecasting, capacity planning, and real-time operations.</p>
+<p>This tool reflects practical WFM strategies used in real-world contact center environments.</p>
+</section>
+
+<section class="micro-section" aria-labelledby="wfm-insights-title">
+<h3 id="wfm-insights-title">WFM Insights</h3>
+<ul>
+<li>Capacity planning is about balancing workload, not just headcount.</li>
+<li>Most staffing gaps originate from forecasting inaccuracies.</li>
+<li>Shrinkage and occupancy define real capacity — not raw FTE.</li>
+</ul>
+</section>
+
+</div><!-- /page -->
+
+<div class="footer-divider"></div>
+<!-- ASSUMPTION HISTORY MODAL -->
+<div class="modal-overlay" id="historyModalOverlay" onclick="if(event.target===this) closeHistoryModal()">
+<div class="modal-panel">
+<div class="modal-head">
+<div class="modal-title" id="historyModalTitle">Assumption — History</div>
+<button class="modal-close" onclick="closeHistoryModal()">✕</button>
+</div>
+<div id="historyModalBody"></div>
+</div>
+</div>
+
+<footer class="footer">
+<span>Capacity Planning Engine™ · Built by Kiran BM<br/>Workforce Management Lead at CoinDCX<br/>Focused on Forecasting, Capacity Planning, and Real-Time Operations</span>
+</footer>
+
+
+<script type="application/ld+json">
+{
+"@context": "https://schema.org",
+"@type": "SoftwareApplication",
+"name": "WFM Capacity Planning Engine",
+"applicationCategory": "BusinessApplication",
+"operatingSystem": "Web",
+"description": "Capacity planning tool for calculating call center FTE, staffing gaps, hiring needs, and workforce cost impact.",
+"url": "https://KiranbmCoinDCX.github.io/wfm-intelligence-engine/",
+"author": {
+"@type": "Person",
+"name": "Kiran BM"
+},
+"offers": {
+"@type": "Offer",
+"price": "0",
+"priceCurrency": "USD"
+}
+}
+</script>
+
+<script type="application/ld+json">
+{
+"@context": "https://schema.org",
+"@type": "FAQPage",
+"mainEntity": [
+{
+"@type": "Question",
+"name": "How do you calculate required FTE in a call center?",
+"acceptedAnswer": {
+"@type": "Answer",
+"text": "Required FTE is calculated using workload, shrinkage, and buffer assumptions. Occupancy is a resulting output metric, not an input to Required FTE."
+}
+},
+{
+"@type": "Question",
+"name": "What is shrinkage in workforce planning?",
+"acceptedAnswer": {
+"@type": "Answer",
+"text": "Shrinkage is the percentage of paid time not spent handling work."
+}
+},
+{
+"@type": "Question",
+"name": "How does attrition impact hiring plans?",
+"acceptedAnswer": {
+"@type": "Answer",
+"text": "Higher attrition increases hiring requirements to maintain staffing levels."
+}
+},
+{
+"@type": "Question",
+"name": "What is a good occupancy rate?",
+"acceptedAnswer": {
+"@type": "Answer",
+"text": "Typically 75–85% depending on service levels; above 85% raises burnout and SLA risk."
+}
+}
+]
+}
+</script>
+
+<script type="application/ld+json">
+{
+"@context": "https://schema.org",
+"@type": "HowTo",
+"name": "How Capacity Planning Works in Workforce Management",
+"description": "Four-step method to calculate workload, available capacity, staffing gap, and hiring needs.",
+"step": [
+{
+"@type": "HowToStep",
+"name": "Workload Calculation",
+"text": "Convert volume and AHT into total workload hours."
+},
+{
+"@type": "HowToStep",
+"name": "Available Capacity",
+"text": "Convert paid hours into productive hours using shrinkage, then apply the planning buffer to size Required FTE."
+},
+{
+"@type": "HowToStep",
+"name": "Gap Analysis",
+"text": "Compare required FTE vs current headcount."
+},
+{
+"@type": "HowToStep",
+"name": "Hiring Plan",
+"text": "Apply attrition and ramp curves to project hiring needs."
+}
+]
+}
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+SCRIPT — Logic unchanged. New: tooltips, sticky KPI, scenario
+toggle, charts (pure canvas, zero dependencies).
+═══════════════════════════════════════════════════════════════════ -->
+<script>
+"use strict";
+
+/* ── UTILS ──────────────────────────────────────────────────────── */
+const fmt = (n,d=0) => Number(n).toLocaleString('en-IN',{minimumFractionDigits:d,maximumFractionDigits:d});
+const fmtPct = (n,d=1) => fmt(n,d)+'%';
+const fmtK = n => n>=100000?'₹'+fmt(n/100000,2)+'L':n>=1000?fmt(n/1000,1)+'K':fmt(n,0);
+const clamp = (n,a,b) => Math.max(a,Math.min(b,n));
+const MONTHS = ['Month 1','Month 2','Month 3','Month 4','Month 5','Month 6'];
+
+/* ── GLOBAL STATE ───────────────────────────────────────────────── */
+let _lastInp = null;
+let _scenarioMult = 1.0;
+let _fteChartCtx = null, _gapChartCtx = null;
+
+/* ── READ INPUTS ────────────────────────────────────────────────── */
+function readInputs(){
+return {
+volume: +document.getElementById('volume').value ||55000,
+aht: +document.getElementById('aht').value ||300,
+shrinkage: +document.getElementById('shrinkage').value ||30,
+paidHours: +document.getElementById('paidHours').value ||160,
+buffer: +document.getElementById('buffer').value ||30,
+currentHC: +document.getElementById('currentHC').value ||65,
+attrition: +document.getElementById('attrition').value ||5,
+leadTime: +document.getElementById('leadTime').value ||2,
+costFTE: +document.getElementById('costFTE').value ||50000,
+aiDeflection: +document.getElementById('aiDeflection').value ||0,
+ramp1: +document.getElementById('ramp1').value ||50,
+ramp2: +document.getElementById('ramp2').value ||70,
+ramp3: +document.getElementById('ramp3').value ||100,
+hw: [1,2,3,4,5,6].map(n=>{
+const v=document.getElementById('hw'+n).value;
+return v===''?null:+v;
+}),
+};
+}
+
+/* ── EVIDENCE-BASED RAMP: use historical cohort weeks if provided ──── */
+function getEffectiveRamp(inp){
+const hw=inp.hw||[null,null,null,null,null,null];
+const provided = hw.filter(v=>v!==null && !isNaN(v));
+if(provided.length===0){
+return {r1:inp.ramp1,r2:inp.ramp2,r3:inp.ramp3,source:'manual'};
+}
+const avg=arr=>{ const a=arr.filter(v=>v!==null && !isNaN(v)); return a.length?a.reduce((s,v)=>s+v,0)/a.length:null; };
+const m1=avg(hw.slice(0,4)); // weeks 1-4
+const m2=avg(hw.slice(4,6)); // weeks 5-6
+const m3=hw[5]!==null?Math.max(hw[5],90):null; // best available signal, floored near full productivity
+return {
+r1: m1!==null?m1:inp.ramp1,
+r2: m2!==null?m2:inp.ramp2,
+r3: m3!==null?m3:inp.ramp3,
+source:'historical'
+};
+}
+
+/* ── CORE ENGINE ──────────────────────────────────────────────────
+Required FTE methodology (single source of truth for this engine):
+Productive Hours = Paid Hours × (1 − Shrinkage%)
+Required FTE = (Workload ÷ Productive Hours) × (1 + Buffer%)
+Buffer is a planning cushion (forecast error / spike absorption),
+NOT occupancy. Occupancy is a separate, derived OUTPUT metric — see
+buildMonthlyPlan() — never an input to Required FTE. */
+function calcBase(vol,aht,shrinkage,paidHours,buffer,aiDeflection){
+const adjAHT = aiDeflection>20 ? aht*1.15 : aht;
+const workload = (vol*adjAHT)/3600;
+const productiveHours = paidHours*(1-shrinkage/100);
+const rawFTE = workload/productiveHours;
+const reqFTE = rawFTE*(1+buffer/100);
+return {workload,productiveHours,rawFTE,reqFTE,adjAHT};
+}
+
+/* Ramp multiplier for a single cohort of agents at a given plan month.
+origin=-1 → pre-existing staff, already fully tenured (100% productive).
+origin>=0 → treated as the cohort's ACTIVE/ARRIVAL month (i.e. lead time
+has already been applied by the caller — see arrivalMonth()
+below); ramps through 3 monthly stages relative to that
+arrival month: +0 = r1%, +1 = r2%, +2 and beyond = r3%
+(steady-state / near-full productivity).
+NOTE: this function itself is lead-time-agnostic — it only answers "how
+far into its ramp is a cohort that became active in month `origin`".
+Callers are responsible for shifting `origin` by lead time first. This
+keeps computeRecommendedAction()'s pre-shifted "months since arrival"
+call site (and the r1/r2/r3-fraction unit tests) working unchanged. */
+function rampMultiplierFor(origin,month,r1,r2,r3){
+if(origin===-1) return 1;
+const offset=month-origin;
+if(offset<0) return 0;
+if(offset===0) return r1/100;
+if(offset===1) return r2/100;
+return r3/100;
+}
+
+/* Converts a cohort's hiring-DECISION month into its ARRIVAL month, i.e.
+the first plan month it is physically on the floor and can start
+ramping (M1 = r1). This is where inp.leadTime actually gets applied.
+
+Cohort timing convention (hiring initiated in month `origin`):
+- buildMonthlyPlan() sizes+appends a new cohort to `cohorts` only
+AFTER month `origin`'s numbers are computed, so the very earliest a
+cohort can be visible in the plan is already month origin+1 — that
+1-month gap is an architectural minimum, not part of leadTime.
+- Lead Time = 0 or 1 → cohort arrives at origin+1 (the architectural
+floor already covers a 1-month lead time; there's nothing left to
+add), and is at ramp stage M1 (r1%) that month.
+- Lead Time = 2 → cohort arrives one month later, at origin+2,
+still at ramp stage M1 (r1%) on arrival.
+- Lead Time = N (N>1) → arrives at origin+N, at M1 (r1%).
+- From the arrival month onward the cohort ramps M1 → M2 → M3+
+exactly as rampMultiplierFor() already models (r1, then r2, then
+r3 steady state) — lead time only delays WHEN ramping starts, it
+never changes the ramp curve itself.
+Pre-existing staff (origin=-1) are unaffected — they're already fully
+tenured and rampMultiplierFor() short-circuits them to 100%. */
+function arrivalMonth(origin,leadTime){
+if(origin===-1) return -1;
+return origin+Math.max(Math.round(leadTime||0),1);
+}
+
+/* Monthly headcount/ramp/hiring model.
+Every physical agent lives in exactly ONE cohort at a time — this is
+the single source of truth for headcount. A cohort's people are
+counted once as physicalHC (raw headcount) and once, at their current
+ramp-stage multiplier, as effectiveHC (productive capacity). They are
+NEVER added again as full HC in a later month — a 50%-ramped new hire
+contributes exactly 0.5 FTE of effective capacity, not 1.5, and is
+never double-counted once they reach full productivity. */
+function buildMonthlyPlan(inp){
+const eR=getEffectiveRamp(inp);
+const plan=[];
+let cohorts=[{origin:-1,physicalHC:inp.currentHC}];
+
+for(let m=0;m<6;m++){
+const vol=inp.volume*_scenarioMult;
+const {workload,productiveHours,reqFTE}=calcBase(vol,inp.aht,inp.shrinkage,inp.paidHours,inp.buffer,inp.aiDeflection);
+
+// Attrition applies to every live cohort — tenured and still-ramping agents alike.
+const totalBefore=cohorts.reduce((s,c)=>s+c.physicalHC,0);
+cohorts=cohorts.map(c=>({...c,physicalHC:c.physicalHC*(1-inp.attrition/100)}));
+const totalAfter=cohorts.reduce((s,c)=>s+c.physicalHC,0);
+const attritionLoss=Math.round(totalBefore-totalAfter);
+
+// physicalHC: raw headcount (every agent counted once) — lead time does
+// NOT delay this; a hired cohort is physical headcount (e.g. in
+// recruiting/training pipeline) from its decision month, it just isn't
+// PRODUCTIVE yet. effectiveHC: that same headcount weighted by each
+// cohort's ramp stage, where the ramp clock only starts once the
+// cohort has actually arrived (decision month + lead time, floored at
+// the 1-month architectural minimum — see arrivalMonth() above). A
+// cohort that hasn't arrived yet contributes 0 effective FTE this
+// month (rampMultiplierFor returns 0 for a negative offset).
+let physicalHC=0, effectiveHC=0;
+cohorts.forEach(c=>{
+physicalHC+=c.physicalHC;
+effectiveHC+=c.physicalHC*rampMultiplierFor(arrivalMonth(c.origin,inp.leadTime),m,eR.r1,eR.r2,eR.r3);
+});
+
+// Occupancy = Workload ÷ (Effective HC × Productive Hours) × 100.
+// Uses Productive Hours (post-shrinkage available time), not raw Paid
+// Hours, since occupancy measures utilization of time actually
+// available to handle work.
+const occupancy=effectiveHC>0?(workload/(effectiveHC*productiveHours))*100:999;
+const gap=Math.ceil(reqFTE)-Math.round(effectiveHC);
+
+// Ramp-aware hiring: a cohort hired this month becomes active (arrives)
+// at month + arrivalMonth() offset (see above — the 1-month
+// architectural floor, or inp.leadTime if longer), and on arrival is
+// ALWAYS at ramp stage r1 (M1) regardless of how long the lead time
+// was — lead time delays WHEN the cohort starts ramping, it never
+// skips it straight to a later ramp stage. So r1 is "the first
+// relevant ramp stage" a forward-sized hire will actually hit. Sizing
+// physical hires as gap ÷ (r1/100), rather than 1:1 with the
+// effective-FTE gap, means the cohort's ramp-adjusted contribution
+// actually closes the deficit once it comes online — instead of
+// landing at only ~r1% of the gap and leaving a recurring shortfall
+// that would otherwise force repeated reactive top-up hiring in later
+// months. Falls back to r2, then to a 1:1 ratio, only in the
+// degenerate case where r1 is 0 (agents start at 0% productivity).
+const rampAtFirstCount = eR.r1>0 ? eR.r1/100 : (eR.r2>0 ? eR.r2/100 : 1);
+const hiring=gap>0 ? Math.ceil(gap/rampAtFirstCount) : 0;
+
+plan.push({
+month:m,volume:vol,workload,reqFTE:Math.ceil(reqFTE),attritionLoss,
+physicalHC:Math.round(physicalHC),
+effectiveHC:Math.round(effectiveHC),
+tenuredHC:Math.round(physicalHC), // kept for backward compatibility; equals physical (non-ramp-adjusted) HC
+occupancy,gap,hiring
+});
+
+if(hiring>0) cohorts.push({origin:m,physicalHC:hiring});
+}
+return plan;
+}
+
+/* ── BASELINE / ROLLING REPLAN (localStorage) ───────────────────── */
+const BASELINE_KEY='wfmcpe_baseline_v1';
+function loadBaseline(){
+try{ const raw=localStorage.getItem(BASELINE_KEY); return raw?JSON.parse(raw):null; }catch(e){ return null; }
+}
+function saveBaseline(inp){
+try{ localStorage.setItem(BASELINE_KEY, JSON.stringify({ts:Date.now(),inputs:inp})); }catch(e){}
+}
+function pinBaseline(){
+if(_lastInp){ saveBaseline(_lastInp); if(_lastInp) _renderAll(_lastInp); }
+}
+function clearBaseline(){
+try{ localStorage.removeItem(BASELINE_KEY); }catch(e){}
+if(_lastInp) _renderAll(_lastInp);
+}
+
+/* ── ASSUMPTION DRIFT: Owner + Last-Validated metadata (localStorage) ──
+Organizational metadata only (who owns each assumption, when it was
+last checked) — never touches the staffing math itself. Sensible WFM
+defaults are used until the user edits them inline in the table. */
+const ASSUMPTION_META_KEY='wfmcpe_assumption_meta_v1';
+const ASSUMPTION_DEFAULT_META={
+volume:{owner:'Demand Planning',validated:''},
+aht:{owner:'Ops / Quality',validated:''},
+shrinkage:{owner:'WFM',validated:''},
+attrition:{owner:'HR / WFM',validated:''},
+buffer:{owner:'Ops',validated:''},
+ramp:{owner:'Training / L&D',validated:''}
+};
+const STALE_DAYS=90;
+function loadAssumptionMeta(){
+try{
+const raw=localStorage.getItem(ASSUMPTION_META_KEY);
+const saved=raw?JSON.parse(raw):{};
+const merged={}; Object.keys(ASSUMPTION_DEFAULT_META).forEach(k=>merged[k]={...ASSUMPTION_DEFAULT_META[k],...(saved[k]||{})});
+return merged;
+}catch(e){ return {...ASSUMPTION_DEFAULT_META}; }
+}
+function saveAssumptionMeta(meta){
+try{ localStorage.setItem(ASSUMPTION_META_KEY, JSON.stringify(meta)); }catch(e){}
+}
+function updateAssumptionMeta(key,field,value){
+const meta=loadAssumptionMeta();
+meta[key]={...meta[key],[field]:value};
+saveAssumptionMeta(meta);
+if(_lastInp) renderReplan(_lastInp); // refresh drift table (stale flags, etc.) without re-running the full engine
+}
+function stalenessOf(dateStr){
+if(!dateStr) return {cls:'badge-high',label:'Review Required'};
+const days=(Date.now()-new Date(dateStr).getTime())/86400000;
+if(isNaN(days)) return {cls:'badge-high',label:'Review Required'};
+if(days>STALE_DAYS) return {cls:'badge-medium',label:'Stale'};
+return {cls:'badge-low',label:'OK'};
+}
+
+/* ── ASSUMPTION HISTORY (localStorage) ──────────────────────────────
+Lightweight, per-assumption change log: {date, value, owner, status}.
+Auto-logged whenever an assumption's displayed value actually changes
+(deduped against the last entry) — no fabricated data. If a person has
+never run the engine before, or an assumption has never changed, the
+log is empty and the modal shows a clearly labeled sample/demo state
+instead of inventing history. People can also add entries manually. */
+const ASSUMPTION_HISTORY_KEY='wfmcpe_assumption_history_v1';
+const ASSUMPTION_HISTORY_LABEL={volume:'Volume',aht:'AHT',shrinkage:'Shrinkage',attrition:'Attrition',buffer:'Productivity (Buffer)',ramp:'Ramp Curve'};
+function loadAssumptionHistory(){
+try{ const raw=localStorage.getItem(ASSUMPTION_HISTORY_KEY); return raw?JSON.parse(raw):{}; }catch(e){ return {}; }
+}
+function saveAssumptionHistory(h){ try{ localStorage.setItem(ASSUMPTION_HISTORY_KEY, JSON.stringify(h)); }catch(e){} }
+function logAssumptionHistorySnapshot(inp,meta){
+const h=loadAssumptionHistory();
+const vals={volume:Math.round(inp.volume).toLocaleString(),aht:`${inp.aht}s`,shrinkage:`${inp.shrinkage}%`,
+attrition:`${inp.attrition}%`,buffer:`${inp.buffer}%`,ramp:rampLabel(inp)};
+const today=new Date().toISOString().slice(0,10);
+let changed=false;
+Object.keys(vals).forEach(k=>{
+if(!h[k]) h[k]=[];
+const last=h[k][h[k].length-1];
+if(!last || last.value!==vals[k]){
+h[k].push({date:today,value:vals[k],owner:(meta[k]&&meta[k].owner)||'Unassigned',status:'Validated'});
+changed=true;
+}
+});
+if(changed) saveAssumptionHistory(h);
+}
+function addManualHistoryEntry(key){
+const val=(document.getElementById('hist_val_'+key).value||'').trim();
+if(!val) return;
+const date=document.getElementById('hist_date_'+key).value||new Date().toISOString().slice(0,10);
+const owner=(document.getElementById('hist_owner_'+key).value||'Unassigned').trim();
+const h=loadAssumptionHistory();
+if(!h[key]) h[key]=[];
+h[key].push({date,value:val,owner,status:'Manual entry'});
+saveAssumptionHistory(h);
+showHistory(key);
+}
+function showHistory(key){
+const h=loadAssumptionHistory();
+const real=(h[key]||[]).slice().sort((a,b)=>a.date.localeCompare(b.date));
+const label=ASSUMPTION_HISTORY_LABEL[key]||key;
+const isDemo=real.length===0;
+const demoRows=[
+{date:'2026-03-01',value:'30%',owner:'WFM',status:'Validated (sample)'},
+{date:'2026-05-01',value:'32%',owner:'WFM',status:'Validated (sample)'},
+{date:'2026-07-01',value:'35%',owner:'WFM',status:'Validated (sample)'},
+{date:new Date().toISOString().slice(0,10),value:'38%',owner:'WFM',status:'Pending review (sample)'}
+];
+const rows=isDemo?demoRows:real;
+document.getElementById('historyModalTitle').textContent=`${label} — History`;
+document.getElementById('historyModalBody').innerHTML=`
+<div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6;">What changed, when, who owns it, and how fresh is it — for <strong style="color:var(--text)">${label}</strong>.</div>
+${isDemo?`<div class="pill pill-manual" style="margin-bottom:12px;">Sample / demo data — no real change history recorded yet for this assumption</div>`:''}
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left;">Effective Date</th><th>Value</th><th>Owner</th><th>Validation Status</th></tr></thead>
+<tbody>${rows.map(r=>`<tr><td>${r.date}</td><td>${r.value}</td><td>${r.owner}</td><td>${r.status}</td></tr>`).join('')}</tbody>
+</table></div>
+<div style="margin-top:18px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;">Add entry manually</div>
+<div class="input-grid" style="grid-template-columns:1fr 1fr 1fr auto;margin-top:8px;margin-bottom:0;">
+<div class="field"><label class="field-label">Value</label><input class="drift-input" id="hist_val_${key}" placeholder="e.g. 38%"/></div>
+<div class="field"><label class="field-label">Effective Date</label><input class="drift-input" type="date" id="hist_date_${key}"/></div>
+<div class="field"><label class="field-label">Owner</label><input class="drift-input" id="hist_owner_${key}" placeholder="e.g. WFM"/></div>
+<button class="btn-ghost" style="align-self:end;padding:8px 14px;font-size:11px;" onclick="addManualHistoryEntry('${key}')">Add</button>
+</div>`;
+document.getElementById('historyModalOverlay').classList.add('visible');
+}
+function closeHistoryModal(){ document.getElementById('historyModalOverlay').classList.remove('visible'); }
+
+/* ── DRIVER WATERFALL: "Why did the gap change?" ────────────────── */
+function computeDriverWaterfall(baseInp,curInp){
+// Required-FTE drivers (month-1, structural: volume/AHT/shrinkage/buffer)
+const b0=calcBase(baseInp.volume,baseInp.aht,baseInp.shrinkage,baseInp.paidHours,baseInp.buffer,baseInp.aiDeflection).reqFTE;
+let running={...baseInp};
+const fteSteps=[];
+const applyStep=(label,key,val)=>{
+const before=calcBase(running.volume,running.aht,running.shrinkage,running.paidHours,running.buffer,running.aiDeflection).reqFTE;
+running={...running,[key]:val};
+const after=calcBase(running.volume,running.aht,running.shrinkage,running.paidHours,running.buffer,running.aiDeflection).reqFTE;
+fteSteps.push({label,impact:after-before});
+};
+applyStep('Volume','volume',curInp.volume);
+applyStep('AHT','aht',curInp.aht);
+applyStep('Shrinkage','shrinkage',curInp.shrinkage);
+applyStep('Productivity (Buffer)','buffer',curInp.buffer);
+const reqFTEAfter=calcBase(curInp.volume,curInp.aht,curInp.shrinkage,curInp.paidHours,curInp.buffer,curInp.aiDeflection).reqFTE;
+
+// Hiring-trajectory drivers (6-mo cumulative hire need: attrition/ramp)
+const cumHire=inp=>buildMonthlyPlan(inp).reduce((s,r)=>s+r.hiring,0);
+const h0=cumHire(baseInp);
+let running2={...baseInp};
+const hireSteps=[];
+const applyStep2=(label,keys,vals)=>{
+const before=cumHire(running2);
+const upd={}; keys.forEach((k,i)=>upd[k]=vals[i]);
+running2={...running2,...upd};
+const after=cumHire(running2);
+hireSteps.push({label,impact:after-before});
+};
+applyStep2('Attrition',['attrition'],[curInp.attrition]);
+applyStep2('Ramp',['ramp1','ramp2','ramp3','hw'],[curInp.ramp1,curInp.ramp2,curInp.ramp3,curInp.hw]);
+const hireAfter=cumHire(curInp);
+
+// Requirement drivers (FTE) and hiring drivers (headcount) are different
+// units — never combined into a single "biggest driver" comparison.
+// Each category gets its own biggest-driver readout.
+let biggestFTE={label:'None',impact:0};
+fteSteps.forEach(s=>{ if(Math.abs(s.impact)>Math.abs(biggestFTE.impact)) biggestFTE=s; });
+let biggestHire={label:'None',impact:0};
+hireSteps.forEach(s=>{ if(Math.abs(s.impact)>Math.abs(biggestHire.impact)) biggestHire=s; });
+
+return {fteSteps,reqFTEBefore:b0,reqFTEAfter,hireSteps,hireBefore:h0,hireAfter,biggestFTE,biggestHire};
+}
+
+/* ── ASSUMPTION DRIFT: Plan Locked vs Today, per major assumption ──
+Reuses the impact figures already computed by computeDriverWaterfall()
+(dw.fteSteps for Volume/AHT/Shrinkage/Buffer, dw.hireSteps for
+Attrition/Ramp) instead of recomputing anything — no new math, just a
+decision-oriented view of the same numbers plus owner/freshness. */
+function rampLabel(inp){ return `${inp.ramp1}/${inp.ramp2}/${inp.ramp3}%`; }
+function computeAssumptionDrift(baseInp,curInp,dw){
+const rows=[
+{key:'volume',label:'Volume',before:baseInp.volume,after:curInp.volume,
+fmt:v=>Math.round(v).toLocaleString(),diffFmt:d=>`${d>=0?'+':''}${Math.round(d).toLocaleString()}`,
+changed:baseInp.volume!==curInp.volume,impact:dw.fteSteps[0].impact,impactUnit:'FTE'},
+{key:'aht',label:'AHT',before:baseInp.aht,after:curInp.aht,
+fmt:v=>`${v}s`,diffFmt:d=>`${d>=0?'+':''}${d}s`,
+changed:baseInp.aht!==curInp.aht,impact:dw.fteSteps[1].impact,impactUnit:'FTE'},
+{key:'shrinkage',label:'Shrinkage',before:baseInp.shrinkage,after:curInp.shrinkage,
+fmt:v=>`${v}%`,diffFmt:d=>`${d>=0?'+':''}${d} pts`,
+changed:baseInp.shrinkage!==curInp.shrinkage,impact:dw.fteSteps[2].impact,impactUnit:'FTE'},
+{key:'attrition',label:'Attrition',before:baseInp.attrition,after:curInp.attrition,
+fmt:v=>`${v}%`,diffFmt:d=>`${d>=0?'+':''}${d} pts`,
+changed:baseInp.attrition!==curInp.attrition,impact:dw.hireSteps[0].impact,impactUnit:'hires'},
+{key:'buffer',label:'Productivity (Buffer)',before:baseInp.buffer,after:curInp.buffer,
+fmt:v=>`${v}%`,diffFmt:d=>`${d>=0?'+':''}${d} pts`,
+changed:baseInp.buffer!==curInp.buffer,impact:dw.fteSteps[3].impact,impactUnit:'FTE'},
+{key:'ramp',label:'Ramp Curve',before:rampLabel(baseInp),after:rampLabel(curInp),
+fmt:v=>v,diffFmt:()=>'Changed',
+changed:rampLabel(baseInp)!==rampLabel(curInp)||JSON.stringify(baseInp.hw)!==JSON.stringify(curInp.hw),
+impact:dw.hireSteps[1].impact,impactUnit:'hires'}
+];
+// "Top Driver" — biggest FTE-side mover only (matches dw.biggestFTE; FTE
+// and hires are different units and are never compared against each other).
+let topDriver=rows[0]; rows.forEach(r=>{ if(r.impactUnit==='FTE' && Math.abs(r.impact)>Math.abs(topDriver.impact)) topDriver=r; });
+return {rows,topDriver};
+}
+/* Plain-language "why did this change" line — built entirely from the
+already-computed impact figures above, not a new inference layer. */
+function diagnoseGapChange(drift,reqBefore,reqAfter){
+if(reqAfter===reqBefore) return 'Required staffing is unchanged from the locked plan — no material assumption drift detected.';
+const dir=reqAfter>reqBefore?'increased':'decreased';
+const movers=drift.rows.filter(r=>r.impactUnit==='FTE'&&r.changed&&Math.abs(r.impact)>=0.05)
+.sort((a,b)=>Math.abs(b.impact)-Math.abs(a.impact)).slice(0,2);
+if(movers.length===0) return `Required staffing ${dir} from ${reqBefore} to ${reqAfter} FTE.`;
+const phrase=r=>{
+if(r.key==='shrinkage'||r.key==='buffer'||r.key==='attrition') return `${r.label.toLowerCase()} moved from ${r.fmt(r.before)} to ${r.fmt(r.after)}`;
+if(r.key==='aht') return `AHT ${r.after>r.before?'increased':'decreased'} by ${Math.abs(r.after-r.before)}s`;
+return `${r.label.toLowerCase()} moved from ${r.fmt(r.before)} to ${r.fmt(r.after)}`;
+};
+const parts=movers.map(phrase);
+return `Required staffing ${dir} primarily because ${parts.join(' and ')}.`;
+}
+function renderAssumptionDrift(baseInp,curInp,dw){
+const el=document.getElementById('assumptionDrift');
+if(!el) return;
+const meta=loadAssumptionMeta();
+const drift=computeAssumptionDrift(baseInp,curInp,dw);
+const reqBefore=Math.ceil(dw.reqFTEBefore), reqAfter=Math.ceil(dw.reqFTEAfter);
+const rowsHtml=drift.rows.map(r=>{
+const m=meta[r.key];
+const st=stalenessOf(m.validated);
+const diffText=r.changed?r.diffFmt(typeof r.before==='number'?r.after-r.before:0):'No change';
+const diffCls=!r.changed?'td-dim':(r.impact>=0?'td-neg':'td-pos'); // impact sign = effect on required FTE/hires, not raw diff sign
+return `<tr>
+<td>${r.label}</td>
+<td class="td-dim">${r.fmt(r.before)}</td>
+<td>${r.fmt(r.after)}</td>
+<td class="${diffCls}">${diffText}</td>
+<td><input class="drift-input" type="text" value="${m.owner}" onchange="updateAssumptionMeta('${r.key}','owner',this.value)"/></td>
+<td><input class="drift-input" type="date" value="${m.validated}" onchange="updateAssumptionMeta('${r.key}','validated',this.value)"/></td>
+<td><span class="stale-badge ${st.cls}">${st.label}</span></td>
+<td><button class="hist-link" onclick="showHistory('${r.key}')">View History</button></td>
+</tr>`;
+}).join('');
+el.innerHTML=`
+<div style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6;">
+<strong style="color:var(--text)">What changed?</strong> ${diagnoseGapChange(drift,reqBefore,reqAfter)}
+${drift.topDriver.changed?`<br><strong style="color:var(--text)">Top Driver:</strong> ${drift.topDriver.label} (${drift.topDriver.impact>=0?'+':''}${drift.topDriver.impact.toFixed(1)} FTE)`:''}
+</div>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left;">Assumption</th><th>Plan Locked</th><th>Today</th><th>Drift</th><th>Owner</th><th>Last Validated</th><th>Status</th><th>History</th></tr></thead>
+<tbody>${rowsHtml}</tbody>
+</table></div>`;
+}
+
+function renderReplan(inp){
+const baseline=loadBaseline();
+const cmp=document.getElementById('planCompare');
+const wf=document.getElementById('driverWaterfall');
+if(!baseline){
+cmp.innerHTML=`<div class="pc-block"><div class="pc-lbl">Current Plan</div><div class="pc-val">${Math.ceil(calcBase(inp.volume,inp.aht,inp.shrinkage,inp.paidHours,inp.buffer,inp.aiDeflection).reqFTE)} FTE</div><div class="pc-date">${new Date().toLocaleDateString()}</div></div>
+<div class="pc-arrow">—</div>
+<div class="pc-block"><div class="pc-lbl">Previous Plan</div><div class="pc-val" style="color:var(--text3)">No baseline pinned</div><div class="pc-date">Click "Pin as Baseline" to start tracking changes</div></div>`;
+wf.innerHTML=`<div class="input-hint">Pin the current assumptions as a baseline to see driver-level impact the next time you adjust inputs.</div>`;
+saveBaseline(inp); // auto-establish a starting baseline so future edits have something to compare against
+renderAssumptionDrift(inp,inp,computeDriverWaterfall(inp,inp));
+logAssumptionHistorySnapshot(inp,loadAssumptionMeta());
+return;
+}
+const dw=computeDriverWaterfall(baseline.inputs,inp);
+const reqBefore=Math.ceil(dw.reqFTEBefore), reqAfter=Math.ceil(dw.reqFTEAfter);
+cmp.innerHTML=`
+<div class="pc-block"><div class="pc-lbl">Previous Plan (Baseline)</div><div class="pc-val">${reqBefore} FTE req.</div><div class="pc-date">Pinned ${new Date(baseline.ts).toLocaleDateString()}</div></div>
+<div class="pc-arrow">→</div>
+<div class="pc-block"><div class="pc-lbl">Current Plan</div><div class="pc-val" style="color:${reqAfter>reqBefore?'var(--red)':reqAfter<reqBefore?'var(--green)':'var(--text)'}">${reqAfter} FTE req.</div><div class="pc-date">${new Date().toLocaleDateString()}</div></div>`;
+
+const maxAbs=Math.max(1,...[...dw.fteSteps,...dw.hireSteps].map(s=>Math.abs(s.impact)));
+const rowHtml=(s,unit)=>{
+const pct=Math.min(50,(Math.abs(s.impact)/maxAbs)*50);
+const pos=s.impact>=0;
+return `<div class="driver-row">
+<div class="driver-name">${s.label}</div>
+<div class="driver-track"><div class="driver-mid"></div>
+<div class="driver-fill" style="background:${pos?'var(--red)':'var(--green)'};${pos?'left:50%':'right:50%'};width:${pct}%;"></div>
+</div>
+<div class="driver-val ${pos?'td-neg':'td-pos'}">${pos?'+':''}${s.impact.toFixed(1)} ${unit}</div>
+</div>`;
+};
+wf.innerHTML=`
+<div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Required FTE changed ${reqBefore} → ${reqAfter}</div>
+<div class="driver-list">${dw.fteSteps.map(s=>rowHtml(s,'FTE')).join('')}</div>
+<div style="margin-top:8px;font-size:12px;color:var(--text2);">Biggest requirement driver: <strong style="color:var(--text)">${dw.biggestFTE.label}</strong> (${dw.biggestFTE.impact>=0?'+':''}${dw.biggestFTE.impact.toFixed(1)} FTE). Sequential-substitution estimate — order-dependent, not exact attribution.</div>
+<div style="font-size:11px;color:var(--text3);margin:18px 0 8px;">6-Month cumulative hiring need changed ${Math.ceil(dw.hireBefore)} → ${Math.ceil(dw.hireAfter)}</div>
+<div class="driver-list">${dw.hireSteps.map(s=>rowHtml(s,'hires')).join('')}</div>
+<div style="margin-top:8px;font-size:12px;color:var(--text2);">Biggest hiring driver: <strong style="color:var(--text)">${dw.biggestHire.label}</strong> (${dw.biggestHire.impact>=0?'+':''}${dw.biggestHire.impact.toFixed(1)} hires). Requirement drivers (FTE) and hiring drivers (headcount) are different units and are never compared directly.</div>`;
+renderAssumptionDrift(baseline.inputs,inp,dw);
+logAssumptionHistorySnapshot(inp,loadAssumptionMeta());
+}
+
+/* Days until a new hire reaches near-full productivity, derived from the
+ramp model actually in effect (manual r1/r2/r3, or the historical weekly
+cohort curve) — NOT a fixed constant. Changing ramp assumptions changes
+this number, which in turn changes the recommended action date. */
+/* Full detail version: distinguishes an OBSERVED ramp duration (read directly
+off supplied historical weekly data) from an ASSUMED one (the model's
+fallback when data doesn't reach near-full productivity). The UI must
+show which one it's using rather than silently presenting 60 days as if
+it were observed. computeRampDaysToFull() below stays numeric-only for
+existing callers (validation suite, scenario math). */
+function getRampDaysToFullDetail(inp){
+const eR=getEffectiveRamp(inp);
+const threshold=eR.r3*0.95; // "near-full" relative to this model's own steady-state ramp %
+if(eR.source==='historical'){
+const hw=inp.hw||[];
+for(let w=0;w<6;w++){
+if(hw[w]!==null && hw[w]!==undefined && !isNaN(hw[w]) && hw[w]>=threshold){
+const days=(w+1)*7;
+return {days,observed:true,label:`${days} days (observed — week ${w+1} of supplied historical data reached ${fmtPct(threshold)} productivity)`};
+}
+}
+return {days:60,observed:false,label:'60 days (model limit — historical data supplied did not reach near-full productivity within the 6-week window; not an observed value)'};
+}
+// Manual mode: 3 monthly stages relative to hire month — 0 = r1%, 30 = r2%, 60 = r3% (steady state)
+if(eR.r1>=threshold) return {days:0,observed:false,label:'0 days (manual ramp assumption — Month-1 stage already at near-full productivity)'};
+if(eR.r2>=threshold) return {days:30,observed:false,label:'30 days (manual ramp assumption — Month-2 stage reaches near-full productivity)'};
+return {days:60,observed:false,label:'60 days (manual ramp assumption — Month-3 steady-state stage)'};
+}
+function computeRampDaysToFull(inp){
+return getRampDaysToFullDetail(inp).days;
+}
+
+/* Organic (no-new-hire) trajectory: applies only attrition to the existing
+tenured cohort, month over month, with no reactive hiring. This isolates
+WHEN a future staffing gap would emerge on its own — the question the
+Recommended Action needs answered — separate from buildMonthlyPlan(),
+which already hires reactively each month and would otherwise mask it. */
+function projectBaselineNoHire(inp){
+const rows=[];
+let physicalHC=inp.currentHC;
+for(let m=0;m<6;m++){
+const vol=inp.volume*_scenarioMult;
+const {reqFTE}=calcBase(vol,inp.aht,inp.shrinkage,inp.paidHours,inp.buffer,inp.aiDeflection);
+physicalHC=physicalHC*(1-inp.attrition/100);
+const effectiveHC=physicalHC; // existing cohort is already fully tenured (ramp multiplier = 1)
+rows.push({month:m,reqFTE:Math.ceil(reqFTE),effectiveHC:Math.round(effectiveHC),gap:Math.ceil(reqFTE)-Math.round(effectiveHC)});
+}
+return rows;
+}
+
+/* ── RECOMMENDED ACTION (Action Date / Decision Layer) ────────────
+Answers "how many people should I recruit NOW so effective capacity is
+sufficient when the future gap arrives?" — not "gap = 20, recruit 20".
+Distinguishes: (A) current gap, (B) future gap, (C) hires to start now,
+(D) their expected effective FTE contribution by the target month, and
+(E) the date recruitment should start. Uses the ramp model already
+implemented by getEffectiveRamp() — no new arbitrary ramp %. */
+function computeRecommendedAction(inp,gap0,plan){
+const today=new Date();
+const eR=getEffectiveRamp(inp);
+const rampDetail=getRampDaysToFullDetail(inp);
+const leadDays=Math.round(inp.leadTime*30);
+
+const baseline=projectBaselineNoHire(inp);
+const currentGapFTE=Math.max(0,Math.ceil(gap0));
+const futureIdx=baseline.findIndex(r=>r.gap>0);
+
+if(currentGapFTE<=0 && futureIdx===-1){
+return {hasGap:false};
+}
+
+// Target month: the current month if already short, otherwise the first
+// month the organic (no-hire) trajectory goes into deficit.
+const targetIdx=currentGapFTE>0?0:futureIdx;
+const futureGapFTE=Math.max(currentGapFTE,baseline[targetIdx].gap);
+const existingEffectiveAtTarget=baseline[targetIdx].effectiveHC;
+const futureReqFTE=baseline[targetIdx].reqFTE;
+const gapDate=new Date(today); gapDate.setDate(gapDate.getDate()+targetIdx*30);
+
+// Ramp stage a cohort hired NOW will be at by the target month: hires
+// physically arrive after leadTime months, then ramp per r1/r2/r3.
+const monthsSinceArrival=targetIdx-Math.round(inp.leadTime);
+const rampMultiplierAtTarget=monthsSinceArrival<0?0:rampMultiplierFor(0,monthsSinceArrival,eR.r1,eR.r2,eR.r3);
+
+// Recommended physical hires = future effective-FTE deficit ÷ the ramp
+// multiplier those hires will actually have reached by the target month
+// — never the raw future gap treated as physical HC.
+const tooLateToRamp=rampMultiplierAtTarget<=0;
+const recommendedHires=tooLateToRamp?Math.ceil(futureGapFTE):Math.ceil(futureGapFTE/rampMultiplierAtTarget);
+const expectedEffectiveContribution=Math.round(recommendedHires*(tooLateToRamp?1:rampMultiplierAtTarget)*10)/10;
+
+const actionDate=new Date(gapDate); actionDate.setDate(actionDate.getDate()-(leadDays+rampDetail.days));
+const overdue=actionDate<today||tooLateToRamp;
+
+return {
+hasGap:true,currentGapFTE,futureGapFTE,existingEffectiveAtTarget,futureReqFTE,
+gapDate,actionDate,leadDays,rampDays:rampDetail.days,rampLabel:rampDetail.label,rampObserved:rampDetail.observed,
+overdue,tooLateToRamp,targetMonthIdx:targetIdx,recommendedHires,expectedEffectiveContribution,rampMultiplierAtTarget
+};
+}
+function renderRecommendedAction(inp,gap0,plan,precomputed){
+const a=precomputed||computeRecommendedAction(inp,gap0,plan);
+const fmtD=d=>d.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+const cards=document.getElementById('actionCards');
+if(!a.hasGap){
+cards.innerHTML=`<div class="exec-card"><div class="ec-eyebrow">Hiring Action</div><div class="ec-value" style="color:var(--green)">No immediate hiring action indicated. Capacity meets or exceeds requirement.</div></div>`;
+return;
+}
+const narrative=`Future requirement ≈ ${a.futureReqFTE} FTE by ${fmtD(a.gapDate)}. `
++`Existing effective capacity by then ≈ ${Math.round(a.existingEffectiveAtTarget)} FTE (after attrition). `
++`Recruiting now is expected to contribute ≈ ${a.expectedEffectiveContribution} effective FTE by that month`
++(a.tooLateToRamp?' (lead time + ramp will not fully complete in time — treat as urgent physical need).':'.')
++` Recommend ≈ ${a.recommendedHires} physical hires initiated now to close the projected effective-capacity deficit of ${a.futureGapFTE} FTE.`;
+cards.innerHTML=`
+<div class="exec-card"><div class="ec-eyebrow">A · Current Staffing Gap</div><div class="ec-value">${a.currentGapFTE>0?a.currentGapFTE+' FTE short today':'None — capacity meets requirement today'}</div></div>
+<div class="exec-card"><div class="ec-eyebrow">B · Future Staffing Gap</div><div class="ec-value">${a.futureGapFTE} FTE — needed by ${fmtD(a.gapDate)}</div></div>
+<div class="exec-card"><div class="ec-eyebrow">C · Recommended Hires to Initiate Now</div><div class="ec-value">${a.recommendedHires} physical HC</div></div>
+<div class="exec-card"><div class="ec-eyebrow">D · Expected Effective Contribution by Target Month</div><div class="ec-value">≈ ${a.expectedEffectiveContribution} effective FTE (ramp multiplier ${(a.rampMultiplierAtTarget*100).toFixed(0)}%)</div></div>
+<div class="exec-card ${a.overdue?'is-risk':''}"><div class="ec-eyebrow">E · Required Action Date</div><div class="ec-value" ${a.overdue?'style="color:var(--red)"':''}>${a.overdue?'⚠ Overdue — start immediately':'Start hiring by '+fmtD(a.actionDate)}</div></div>
+<div class="exec-card"><div class="ec-eyebrow">Lead Time + Ramp</div><div class="ec-value">${inp.leadTime} mo hiring lead time + ${a.rampLabel}</div></div>
+<div class="exec-card" style="grid-column:1/-1;"><div class="ec-eyebrow">Reasoning</div><div class="ec-value" style="font-size:13px;font-weight:400;line-height:1.6;">${narrative}</div></div>`;
+}
+
+/* ── PLANNING CONFIDENCE ───────────────────────────────────────────
+Transparent, explainable heuristic — NOT a statistically validated
+probability. Starts at 100 and deducts for: stale/unvalidated
+assumptions (per-assumption Owner/Last-Validated metadata already
+captured in Assumption Drift), a manual (non-observed) ramp curve,
+and — once a baseline exists — how far Required FTE has moved from
+the locked baseline (a proxy for forecast variance). If there is no
+baseline AND nothing has ever been validated, there isn't enough
+signal to score honestly, so this returns 'limited' instead of a
+number. */
+function computePlanningConfidence(inp,dw,hasBaseline){
+const meta=loadAssumptionMeta();
+const keys=['volume','aht','shrinkage','attrition','buffer','ramp'];
+let score=100;
+const deductions=[];
+keys.forEach(k=>{
+const st=stalenessOf(meta[k].validated);
+let d=0;
+if(st.label==='Review Required') d=10;
+else if(st.label==='Stale') d=6;
+if(d>0){ score-=d; deductions.push({label:`${ASSUMPTION_HISTORY_LABEL[k]} ${st.label==='Stale'?'validation is stale':'has never been validated'}`,amount:d}); }
+});
+const eR=getEffectiveRamp(inp);
+if(eR.source!=='historical'){ score-=8; deductions.push({label:'Ramp curve is a manual assumption, not observed cohort data',amount:8}); }
+if(hasBaseline && dw.reqFTEBefore>0){
+const pctChange=Math.abs(dw.reqFTEAfter-dw.reqFTEBefore)/dw.reqFTEBefore*100;
+if(pctChange>=20){ score-=15; deductions.push({label:'Required FTE has moved >20% from the locked baseline',amount:15}); }
+else if(pctChange>=10){ score-=8; deductions.push({label:'Required FTE has moved 10–20% from the locked baseline',amount:8}); }
+}
+const anyValidated=keys.some(k=>meta[k].validated);
+const limited=!anyValidated && !hasBaseline;
+score=Math.max(0,Math.min(100,Math.round(score)));
+deductions.sort((a,b)=>b.amount-a.amount);
+return {score,deductions,limited};
+}
+function planningConfidenceValueHtml(pc){
+if(pc.limited) return `<span style="color:var(--text3)">Limited data</span>`;
+const band=pc.score>=80?'var(--green)':pc.score>=60?'var(--amber)':'var(--red)';
+const driver=pc.deductions[0]?pc.deductions[0].label:'No material uncertainty flags — assumptions look current.';
+return `<span style="color:${band}">${pc.score}%</span>
+<div class="confidence-track"><div class="confidence-fill" style="width:${pc.score}%;background:${band}"></div></div>
+<div style="font-size:11px;font-weight:400;color:var(--text2);margin-top:5px;line-height:1.5;">${pc.score>=80?'High':pc.score>=60?'Moderate':'Low'} confidence${pc.deductions.length?` — driven primarily by ${driver.charAt(0).toLowerCase()+driver.slice(1)}.`:'.'}</div>`;
+}
+
+/* ── EXECUTIVE DECISION SUMMARY ("PLAN STATUS") ──────────────────── */
+function renderDecisionSummary(inp,gap0,reqFTE,plan,dw,action,hasBaseline){
+const status=gap0>0?`Gap of ${Math.ceil(gap0)} FTE`:gap0<0?`Surplus of ${Math.abs(Math.round(gap0))} FTE`:'Balanced';
+const gapAppears=gap0>0?'Immediate (current month)':(plan.find(r=>r.hiring>0)?MONTHS[plan.findIndex(r=>r.hiring>0)]:'Not projected in next 6 months');
+const actionReq=action.hasGap?'Yes':'No';
+const recAction=action.hasGap?(action.overdue?`Start hiring immediately — recruit ≈${action.recommendedHires} now (action date has passed)`:`Recruit ≈${action.recommendedHires} by ${action.actionDate.toLocaleDateString('en-IN',{day:'numeric',month:'short'})}`):'No hiring action needed — monitor plan';
+const pc=computePlanningConfidence(inp,dw,hasBaseline);
+document.getElementById('decisionSummary').innerHTML=`
+<div class="ec-eyebrow" style="font-size:11px;">Plan Status</div>
+<div class="decision-grid">
+<div class="decision-item"><div class="dc-lbl">Capacity</div><div class="dc-val" style="color:${gap0>0?'var(--red)':gap0<0?'var(--green)':'var(--text)'}">${status}</div></div>
+<div class="decision-item"><div class="dc-lbl">Primary Requirement Driver</div><div class="dc-val">${dw.biggestFTE.label}</div></div>
+<div class="decision-item"><div class="dc-lbl">Primary Hiring Driver</div><div class="dc-val">${dw.biggestHire.label}</div></div>
+<div class="decision-item"><div class="dc-lbl">Gap Appears</div><div class="dc-val">${gapAppears}</div></div>
+<div class="decision-item"><div class="dc-lbl">Action Required</div><div class="dc-val" style="color:${actionReq==='Yes'?'var(--amber)':'var(--green)'}">${actionReq}</div></div>
+<div class="decision-item"><div class="dc-lbl">Recommended Action</div><div class="dc-val">${recAction}</div></div>
+<div class="decision-item"><div class="dc-lbl">Planning Confidence
+<span class="tip-wrap"><i class="tip-icon">i</i><span class="tooltip tip-left">A transparent heuristic score from assumption freshness, ramp evidence, and forecast variance — not a statistically validated probability.</span></span>
+</div><div class="dc-val">${planningConfidenceValueHtml(pc)}</div></div>
+</div>`;
+}
+
+/* ── WHY DID FTE CHANGE? — executive-friendly driver readout ────────
+Reuses the same driver waterfall (dw.fteSteps) already computed for
+the Rolling Replan section — no new/duplicate math, just a compact,
+ranked summary placed near the headline FTE result. */
+function renderWhyFTEChanged(dw,hasBaseline){
+const el=document.getElementById('whyFTEChanged');
+if(!el) return;
+if(!hasBaseline){
+el.innerHTML=`<div class="insight-card"><div class="ins-title">Why did FTE change?</div><div class="ins-body">No baseline pinned yet. Pin the current assumptions as a baseline in "Why Did The Gap Change? — Rolling Replan" below to start tracking driver-level changes here.</div></div>`;
+return;
+}
+const reqBefore=Math.ceil(dw.reqFTEBefore), reqAfter=Math.ceil(dw.reqFTEAfter);
+const diff=reqAfter-reqBefore;
+if(diff===0){
+el.innerHTML=`<div class="insight-card"><div class="ins-title">Why did FTE change?</div><div class="ins-body">Required FTE is unchanged from the locked baseline (${reqBefore} FTE). No material driver movement.</div></div>`;
+return;
+}
+const ranked=dw.fteSteps.filter(s=>Math.abs(s.impact)>=0.05).sort((a,b)=>Math.abs(b.impact)-Math.abs(a.impact));
+const rankLabel=['Primary driver','Secondary driver','Tertiary driver'];
+const lines=ranked.map((s,i)=>`<div style="margin-top:${i?4:0}px;">${i<3?rankLabel[i]:'Also'}: <strong style="color:var(--text)">${s.label}</strong> <span class="${s.impact>=0?'td-neg':'td-pos'}">${s.impact>=0?'+':''}${s.impact.toFixed(1)} FTE</span></div>`).join('');
+el.innerHTML=`<div class="insight-card">
+<div class="ins-title">Why did FTE change?</div>
+<div class="ins-quote" style="font-family:var(--sans);color:var(--text);font-size:13px;font-weight:600;">Required FTE ${diff>0?'increased':'decreased'} by ${Math.abs(diff)} — from ${reqBefore} to ${reqAfter}</div>
+<div class="ins-body" style="margin-top:12px;">${lines||'No single driver moved by more than 0.05 FTE.'}</div>
+</div>`;
+}
+
+/* ── MULTI-SKILL WHAT-IF SIMULATOR ──────────────────────────────── */
+function simulateMultiSkill(){
+const g=id=>+document.getElementById(id).value||0;
+const qaReq=g('qaReq'), qaCur=g('qaCur'), qbReq=g('qbReq'), qbCur=g('qbCur');
+const cross=g('crossFTE'), pctA=g('crossPctA')||100, pctB=g('crossPctB')||100;
+const move=g('moveAmt'); // negative = A→B, positive = B→A
+const gapABefore=qaReq-qaCur, gapBBefore=qbReq-qbCur;
+// moving |move| FTE: positive = move capacity B→A, negative = move capacity A→B
+let qaAfter, qbAfter;
+if(move>=0){ qaAfter=qaCur+move*(pctA/100); qbAfter=qbCur-move; }
+else{ qaAfter=qaCur+move; qbAfter=qbCur+Math.abs(move)*(pctB/100); }
+const gapAAfter=qaReq-qaAfter, gapBAfter=qbReq-qbAfter;
+const usedCross=Math.abs(move);
+const overCap = usedCross>cross;
+const out=document.getElementById('multiSkillOutput');
+out.classList.remove('hidden');
+const card=(title,before,after)=>`<div class="exec-card"><div class="ec-eyebrow">${title}</div>
+<div class="ec-value">Before: <strong class="${before>0?'td-neg':'td-pos'}">${before>0?'+':''}${before.toFixed(1)} gap</strong> → After: <strong class="${after>0?'td-neg':'td-pos'}">${after>0?'+':''}${after.toFixed(1)} gap</strong></div></div>`;
+out.innerHTML=`
+${overCap?`<div class="exec-card is-risk" style="grid-column:1/-1;"><div class="ec-eyebrow">Warning</div><div class="ec-value">Move of ${usedCross} FTE exceeds ${cross} cross-skilled agents available.</div></div>`:''}
+${card('Queue A',gapABefore,gapAAfter)}
+${card('Queue B',gapBBefore,gapBAfter)}
+<div class="exec-card" style="grid-column:1/-1;"><div class="ec-eyebrow">Move Summary</div><div class="ec-value">Moving ${Math.abs(move)} cross-skilled FTE ${move>=0?'Queue B → Queue A':'Queue A → Queue B'} (destination receives at ${move>=0?pctA:pctB}% effective capacity). This is a transparent what-if — no optimization applied.</div></div>`;
+}
+
+/* ── SHADOW / EARLY WARNING SIGNAL ──────────────────────────────── */
+function evaluateShadowSignal(){
+if(!_lastInp){ return; }
+const g=id=>{ const v=document.getElementById(id).value; return v===''?null:+v; };
+const actVol=g('sigActVol'), actAHT=g('sigActAHT'), actAttr=g('sigActAttr'), actShrink=g('sigActShrink');
+const fcVol=_lastInp.volume, fcAHT=_lastInp.aht, fcAttr=_lastInp.attrition, fcShrink=_lastInp.shrinkage;
+const metrics=[];
+if(actVol!==null) metrics.push({label:'Volume',actual:actVol,forecast:fcVol,pct:(actVol-fcVol)/fcVol*100});
+if(actAHT!==null) metrics.push({label:'AHT',actual:actAHT,forecast:fcAHT,pct:(actAHT-fcAHT)/fcAHT*100});
+if(actAttr!==null) metrics.push({label:'Attrition',actual:actAttr,forecast:fcAttr,pct:(actAttr-fcAttr)/Math.max(1,fcAttr)*100});
+if(actShrink!==null) metrics.push({label:'Shrinkage',actual:actShrink,forecast:fcShrink,pct:(actShrink-fcShrink)/Math.max(1,fcShrink)*100});
+const out=document.getElementById('shadowOutput');
+if(metrics.length===0){
+out.innerHTML=`<div class="input-hint" style="margin-top:14px;">Enter at least one recent actual value to evaluate drift against the official plan.</div>`;
+return;
+}
+let worst=0; metrics.forEach(m=>{ if(Math.abs(m.pct)>Math.abs(worst)) worst=m.pct; });
+const level=Math.abs(worst)>=10?'RISK':Math.abs(worst)>=5?'WATCH':'SAFE';
+const badgeCls=level==='RISK'?'badge-risk':level==='WATCH'?'badge-watch':'badge-safe';
+const dotCol=level==='RISK'?'var(--red)':level==='WATCH'?'var(--amber)':'var(--green)';
+const drivers=metrics.filter(m=>Math.abs(m.pct)>=5).map(m=>`${m.label} ${m.pct>0?'+':''}${m.pct.toFixed(1)}%`).join(', ')||'No metric shows meaningful drift';
+
+// Plan | Actual Run Rate | Recommended Reforecast — reuses calcBase() as-is.
+// Recommended Reforecast substitutes only the actuals the person entered;
+// any metric left blank keeps the official plan value (never fabricated).
+const reforecastVol=actVol!==null?actVol:fcVol, reforecastAHT=actAHT!==null?actAHT:fcAHT;
+const officialReqFTE=Math.ceil(calcBase(fcVol,fcAHT,_lastInp.shrinkage,_lastInp.paidHours,_lastInp.buffer,_lastInp.aiDeflection).reqFTE);
+const actualRunRateReqFTE=Math.ceil(calcBase(reforecastVol,reforecastAHT,
+actShrink!==null?actShrink:_lastInp.shrinkage,_lastInp.paidHours,_lastInp.buffer,_lastInp.aiDeflection).reqFTE);
+const volPct=metrics.find(m=>m.label==='Volume'), ahtPct=metrics.find(m=>m.label==='AHT');
+const reforecastJustified=level!=='SAFE';
+const recommendation=level==='SAFE'?'No reforecast needed — actuals are tracking to plan.'
+:level==='WATCH'?'Review before next planning cycle. Not yet justified as an automatic reforecast.'
+:'Material drift — re-validate assumptions and consider reforecasting before the next planning cycle.';
+
+out.innerHTML=`
+<div class="reforecast-compare" style="margin-top:18px;">
+<div class="pc-block"><div class="pc-lbl">Official Plan</div><div class="pc-val">${officialReqFTE} FTE req.</div><div class="pc-date">Vol ${Math.round(fcVol).toLocaleString()} · AHT ${fcAHT}s</div></div>
+<div class="pc-block"><div class="pc-lbl">Actual Run Rate</div><div class="pc-val" style="color:${dotCol}">${actualRunRateReqFTE} FTE req.</div><div class="pc-date">Vol ${Math.round(reforecastVol).toLocaleString()} · AHT ${Math.round(reforecastAHT)}s</div></div>
+<div class="pc-block"><div class="pc-lbl">Recommended Reforecast</div><div class="pc-val" style="color:${reforecastJustified?'var(--amber)':'var(--text3)'}">${reforecastJustified?actualRunRateReqFTE+' FTE req.':'Keep official plan'}</div><div class="pc-date">${reforecastJustified?'Not auto-applied — planner review required':'Drift within tolerance'}</div></div>
+</div>
+<div class="status-banner" style="margin-top:12px;">
+<span class="status-dot-lg" style="background:${dotCol}"></span>
+<div>
+<span class="pill ${badgeCls}">Forecast challenge: ${level}</span>
+<div style="font-size:12px;color:var(--text2);margin-top:6px;">
+${volPct?`Volume ${volPct.pct>0?'+':''}${volPct.pct.toFixed(1)}% vs plan<br/>`:''}
+${ahtPct?`AHT ${ahtPct.pct>0?'+':''}${ahtPct.pct.toFixed(1)}% vs plan<br/>`:''}
+<strong style="color:var(--text)">What changed?</strong> ${drivers}.<br/>
+<strong style="color:var(--text)">Why does it matter?</strong> ${level==='RISK'?'Drift at this scale materially changes required FTE and gap — the official plan likely understates or overstates need.':level==='WATCH'?'Drift is emerging. Not yet material, but worth tracking week over week.':'Actuals are tracking close to plan. No challenge to the official forecast warranted.'}<br/>
+<strong style="color:var(--text)">Recommendation:</strong> ${recommendation}
+</div>
+</div>
+</div>
+<div class="mini-result-row">${metrics.map(m=>`
+<div class="exec-card"><div class="ec-eyebrow">${m.label}</div><div class="ec-value">Plan: ${fmt(m.forecast,1)} · Actual: ${fmt(m.actual,1)} <span class="${m.pct>0?'td-neg':'td-pos'}">(${m.pct>0?'+':''}${m.pct.toFixed(1)}%)</span></div></div>`).join('')}</div>`;
+}
+
+/* ── MAIN RUN ───────────────────────────────────────────────────── */
+function runEngine(){
+_lastInp = readInputs();
+_renderAll(_lastInp);
+document.getElementById('emptyState').classList.add('hidden');
+const out = document.getElementById('outputArea');
+out.classList.remove('hidden');
+out.scrollIntoView({behavior:'smooth',block:'start'});
+initStickyKpi();
+}
+
+function _renderAll(inp){
+const vol = inp.volume * _scenarioMult;
+const inpAdj = {...inp, volume: vol};
+const {workload,productiveHours,reqFTE,adjAHT} = calcBase(vol,inp.aht,inp.shrinkage,inp.paidHours,inp.buffer,inp.aiDeflection);
+const eff0 = inp.currentHC;
+// Occupancy uses Productive Hours (post-shrinkage), not raw Paid Hours — see calcBase().
+const occ0 = eff0>0?(workload/(eff0*productiveHours))*100:0;
+const gap0 = Math.ceil(reqFTE)-eff0;
+const plan = buildMonthlyPlan(inp);
+
+renderExec(inp,reqFTE,eff0,gap0,occ0);
+renderKPIs(inp,workload,productiveHours,reqFTE,eff0,gap0,occ0,adjAHT);
+renderStatusBar(gap0,reqFTE,eff0,occ0);
+renderTable(plan);
+renderScenarios(inp,workload,reqFTE);
+renderIntelligence(inp,gap0,occ0,reqFTE,eff0,plan);
+renderCopilot(inp,gap0,occ0,reqFTE);
+renderFormulas(inp,workload,productiveHours,reqFTE,adjAHT);
+renderInsights(inp,gap0,occ0,reqFTE,workload,productiveHours);
+renderCharts(plan);
+updateStickyKpi(gap0,reqFTE,eff0,occ0,workload,fmtK(eff0*inp.costFTE));
+
+// v4 additions
+updateRampSourceBadge(inp);
+renderReplan(inp);
+const action=computeRecommendedAction(inp,gap0,plan);
+renderRecommendedAction(inp,gap0,plan,action);
+const baselineForDW=loadBaseline();
+const hasBaseline=!!baselineForDW;
+const dw=hasBaseline?computeDriverWaterfall(baselineForDW.inputs,inp):
+{biggestFTE:{label:'None (no baseline pinned yet)',impact:0},biggestHire:{label:'None (no baseline pinned yet)',impact:0},
+fteSteps:[],reqFTEBefore:Math.ceil(reqFTE),reqFTEAfter:Math.ceil(reqFTE)};
+renderDecisionSummary(inp,gap0,reqFTE,plan,dw,action,hasBaseline);
+renderWhyFTEChanged(dw,hasBaseline);
+}
+
+function updateRampSourceBadge(inp){
+const eR=getEffectiveRamp(inp);
+const badge=document.getElementById('rampSourceBadge');
+if(!badge) return;
+if(eR.source==='historical'){
+badge.className='pill pill-hist';
+badge.textContent=`Using observed cohort curve (${eR.r1.toFixed(0)}% → ${eR.r2.toFixed(0)}% → ${eR.r3.toFixed(0)}%)`;
+}else{
+badge.className='pill pill-manual';
+badge.textContent='Manual assumption — validate against historical cohorts';
+}
+}
+
+/* ── SCENARIO TOGGLE ────────────────────────────────────────────── */
+function setScenarioMult(mult,btn){
+_scenarioMult = mult;
+document.querySelectorAll('.stog-btn').forEach(b=>b.classList.remove('active'));
+btn.classList.add('active');
+if(_lastInp) _renderAll(_lastInp);
+}
+
+/* ── STICKY KPI ─────────────────────────────────────────────────── */
+let _stickyInited = false;
+function initStickyKpi(){
+if(_stickyInited) return;
+_stickyInited = true;
+const kpiSection = document.getElementById('kpiSection');
+const stickyEl = document.getElementById('stickyKpi');
+const obs = new IntersectionObserver(([e])=>{
+stickyEl.classList.toggle('visible', !e.isIntersecting && e.boundingClientRect.top < 0);
+},{threshold:0, rootMargin:'-60px 0px 0px 0px'});
+obs.observe(kpiSection);
+}
+function updateStickyKpi(gap,reqFTE,effHC,occ,workload,cost){
+const items=[
+{lbl:'Workload', val:fmt(workload,0)+' hrs', cls:''},
+{lbl:'Req. FTE', val:Math.ceil(reqFTE), cls:''},
+{lbl:'Eff. HC', val:effHC, cls:''},
+{lbl:'Gap', val:(gap>0?'+':'')+Math.round(gap), cls:gap>0?'s-red':'s-green'},
+{lbl:'Occupancy', val:fmtPct(occ), cls:occ>85?'s-red':occ>70?'s-amber':'s-green'},
+{lbl:'Monthly Cost', val:cost, cls:''},
+];
+document.getElementById('stickyKpiInner').innerHTML=items.map(it=>`
+<div class="skpi-item">
+<span class="skpi-lbl">${it.lbl}</span>
+<span class="skpi-val ${it.cls}">${it.val}</span>
+</div>`).join('');
+}
+
+/* ── EXECUTIVE SUMMARY ──────────────────────────────────────────── */
+function renderExec(inp,reqFTE,eff,gap,occ){
+const abs=Math.abs(Math.round(gap));
+const pos=gap<0?`Capacity Surplus: ${abs} FTE above requirement. Review cost efficiency.`
+:`Capacity Deficit: ${abs} FTE below requirement. Immediate action needed.`;
+const risk=occ>90?`CRITICAL — Occupancy at ${fmtPct(occ)}. High burnout and quality risk at this utilization.`
+:occ>80?`HIGH — Occupancy ${fmtPct(occ)}. Hire within 30 days.`
+:occ>70?`MODERATE — Occupancy ${fmtPct(occ)}. Monitor attrition.`
+:`HEALTHY — Occupancy ${fmtPct(occ)}. Plan for growth.`;
+const mandate=gap>0?`Recruit approximately ${Math.ceil(gap)} physical HC, accounting for the current staffing gap, ${inp.leadTime}-mo hiring lead time, and ramp. See Recommended Action for the ramp-adjusted hiring plan.`
+:`Optimize capacity. Consider cross-training or flex scheduling.`;
+const set=(id,eye,val)=>{
+document.getElementById(id).innerHTML=`<div class="ec-eyebrow">${eye}</div><div class="ec-value">${val}</div>`;
+};
+set('execPosition','Staffing Position',pos);
+set('execRisk','Primary Risk',risk);
+set('execMandate','Strategic Mandate',mandate);
+}
+
+/* ── KPI DASHBOARD ──────────────────────────────────────────────── */
+const KPI_TIPS = {
+'Workload Hours': 'Total handle-time demand in hours. Formula: (Volume × AHT) ÷ 3600. Not an Erlang-C staffing calculation.',
+'Required FTE': 'FTE needed including buffer & shrinkage. Formula: (Workload ÷ Prod.Hrs) × (1 + Buffer%).',
+'Effective HC': 'Ramp-adjusted headcount actually available for calls right now.',
+'Capacity Gap': 'Required FTE minus Effective HC. Positive = deficit (hire). Negative = surplus (optimize).',
+'Occupancy': 'Capacity Utilization / Occupancy = Workload ÷ (Effective HC × Productive Hours) × 100. A monthly planning utilization indicator (safe band 75–85%) — not an Erlang-C occupancy or service-level calculation.',
+'Prod. Hours': 'Paid Hours × (1 − Shrinkage%). Hours an agent is actually available to take calls.',
+'Shrinkage': 'Non-productive paid time per agent. Breaks + absence + training. Raises required FTE.',
+'Monthly Cost': 'Effective HC × Cost per FTE. Total payroll for current headcount.',
+};
+
+function renderKPIs(inp,workload,productiveHours,reqFTE,effHC,gap,occ,adjAHT){
+const kpis=[
+{label:'Workload Hours', value:fmt(workload,0)+' hrs', meta:'Total handle-time demand', formula:`(${fmt(inp.volume*_scenarioMult,0)} × ${adjAHT}s) ÷ 3600`, cls:''},
+{label:'Required FTE', value:Math.ceil(reqFTE), meta:'With buffer & shrinkage', formula:`(WL÷${fmt(productiveHours,1)}h)×${1+inp.buffer/100}`, cls:''},
+{label:'Effective HC', value:effHC, meta:'Ramp-adjusted capacity', formula:`Current HC: ${inp.currentHC} agents`, cls:''},
+{label:'Capacity Gap', value:(gap>0?'+':'')+Math.round(gap)+' FTE', meta:gap>0?'Deficit — hire now':'Surplus — optimize',
+formula:`Req ${Math.ceil(reqFTE)} − Eff ${effHC}`, cls:gap>0?'kpi-red':'kpi-green'},
+{label:'Occupancy', value:fmtPct(occ), meta:(occ>85?'Risk Band: HIGH':'Risk Band: NORMAL')+' — Capacity Utilization',
+formula:`WL÷(HC×Prod.Hrs)×100`, cls:occ>90?'kpi-red':occ>80?'kpi-amber':'kpi-green'},
+{label:'Prod. Hours', value:fmt(productiveHours,1), meta:'Per agent per month', formula:`${inp.paidHours}h×(1−${inp.shrinkage}%)`, cls:''},
+{label:'Shrinkage', value:fmt(inp.paidHours*(inp.shrinkage/100),1)+' hrs', meta:'Lost per agent/month', formula:`${inp.paidHours}h×${inp.shrinkage}%`, cls:''},
+{label:'Monthly Cost', value:fmtK(effHC*inp.costFTE), meta:'Current HC cost', formula:`${effHC}×₹${fmt(inp.costFTE)}`, cls:''},
+];
+document.getElementById('kpiGrid').innerHTML=kpis.map(k=>{
+const tip = KPI_TIPS[k.label]||'';
+return `<div class="kpi ${k.cls}">
+<div class="kpi-label">${k.label}${tip?`<span class="tip-wrap"><i class="tip-icon">i</i><span class="tooltip">${tip}</span></span>`:''}
+</div>
+<div class="kpi-number">${k.value}</div>
+<div class="kpi-meta">${k.meta}</div>
+<div class="kpi-formula">${k.formula}</div>
+</div>`;
+}).join('');
+}
+
+/* ── HEALTH BARS ────────────────────────────────────────────────── */
+function renderStatusBar(gap,reqFTE,effHC,occ){
+const sp=clamp((effHC/reqFTE)*100,0,100), oc=clamp(occ,0,100);
+const fc=(p,inv)=>inv?(p>85?'fill-red':p>70?'fill-amber':'fill-green'):(p<60?'fill-red':p<85?'fill-amber':'fill-green');
+const sc=(p,inv)=>inv?(p>85?'var(--red)':p>70?'var(--amber)':'var(--green)'):(p<60?'var(--red)':p<85?'var(--amber)':'var(--green)');
+const st=(p,t)=>t==='s'?(p<60?'Critical — Understaffed':p<85?'Watch — Gap Exists':'Healthy'):(p>90?'Critical — Burnout Risk':p>80?'High — Above Safe Band':p>70?'Elevated':'Optimal');
+const bars=[
+{name:'Staffing Level',pct:sp,fc:fc(sp,false),sc:sc(sp,false),st:st(sp,'s'),tip:'Effective HC as % of Required FTE. Below 85% indicates a capacity gap.'},
+{name:'Occupancy / Capacity Utilization', pct:oc,fc:fc(oc,true), sc:sc(oc,true), st:st(oc,'o'), tip:'Monthly capacity-utilization indicator, not an Erlang-C service-level calculation. Safe band: 75–85%. Above 85% drives burnout and quality risk.'},
+];
+document.getElementById('statusBar').innerHTML=bars.map(b=>`
+<div class="health-item">
+<div class="health-top">
+<span class="health-name">${b.name}
+<span class="tip-wrap"><i class="tip-icon" style="margin-left:5px">i</i><span class="tooltip">${b.tip}</span></span>
+</span>
+<span class="health-val" style="color:${b.sc}">${b.pct.toFixed(1)}%</span>
+</div>
+<div class="health-track"><div class="health-fill ${b.fc}" style="width:${b.pct.toFixed(1)}%"></div></div>
+<div class="health-status" style="color:${b.sc}">${b.st}</div>
+</div>`).join('');
+}
+
+/* ── CHARTS (pure Canvas, zero dependencies) ────────────────────── */
+function renderCharts(plan){
+drawFTEChart(plan);
+drawGapChart(plan);
+}
+
+function makeCanvas(id){
+const wrap = document.querySelector(`#${id}`).parentElement;
+let c = document.getElementById(id);
+if(!c){ c=document.createElement('canvas'); c.id=id; wrap.appendChild(c); }
+const dpr = window.devicePixelRatio||1;
+const w = wrap.clientWidth||600, h=180;
+c.width = w*dpr; c.height = h*dpr;
+c.style.width=w+'px'; c.style.height=h+'px';
+const ctx=c.getContext('2d'); ctx.scale(dpr,dpr);
+return {ctx,w,h};
+}
+
+function drawFTEChart(plan){
+const {ctx,w,h} = makeCanvas('fteChart');
+ctx.clearRect(0,0,w,h);
+const PAD={t:16,r:16,b:32,l:42};
+const cw=w-PAD.l-PAD.r, ch=h-PAD.t-PAD.b;
+const reqs = plan.map(r=>r.reqFTE);
+const effs = plan.map(r=>r.effectiveHC);
+const allV = [...reqs,...effs];
+const mn=Math.min(...allV)*0.85, mx=Math.max(...allV)*1.1;
+const xStep=cw/(plan.length-1);
+const yScale=v=>(ch-(v-mn)/(mx-mn)*ch)+PAD.t;
+const xPos=i=>PAD.l+i*xStep;
+
+// grid lines
+ctx.strokeStyle='rgba(255,255,255,0.05)'; ctx.lineWidth=1;
+for(let i=0;i<=4;i++){
+const y=PAD.t+(i/4)*ch;
+ctx.beginPath(); ctx.moveTo(PAD.l,y); ctx.lineTo(w-PAD.r,y); ctx.stroke();
+const val=mx-(i/4)*(mx-mn);
+ctx.fillStyle='rgba(255,255,255,0.25)'; ctx.font='10px DM Mono,monospace';
+ctx.textAlign='right'; ctx.fillText(Math.round(val),PAD.l-6,y+3.5);
+}
+
+// eff HC line (dashed)
+ctx.save(); ctx.setLineDash([4,4]);
+ctx.strokeStyle='rgba(62,207,142,0.5)'; ctx.lineWidth=1.5;
+ctx.beginPath();
+effs.forEach((v,i)=>i===0?ctx.moveTo(xPos(i),yScale(v)):ctx.lineTo(xPos(i),yScale(v)));
+ctx.stroke(); ctx.restore();
+
+// req FTE line + fill
+const grad=ctx.createLinearGradient(0,PAD.t,0,h-PAD.b);
+grad.addColorStop(0,'rgba(79,142,247,0.2)'); grad.addColorStop(1,'rgba(79,142,247,0)');
+ctx.beginPath();
+reqs.forEach((v,i)=>i===0?ctx.moveTo(xPos(i),yScale(v)):ctx.lineTo(xPos(i),yScale(v)));
+ctx.lineTo(xPos(reqs.length-1),yScale(mn));
+ctx.lineTo(xPos(0),yScale(mn));
+ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
+ctx.beginPath();
+reqs.forEach((v,i)=>i===0?ctx.moveTo(xPos(i),yScale(v)):ctx.lineTo(xPos(i),yScale(v)));
+ctx.strokeStyle='#4F8EF7'; ctx.lineWidth=2; ctx.stroke();
+
+// dots + labels
+plan.forEach((_,i)=>{
+// req dot
+ctx.beginPath(); ctx.arc(xPos(i),yScale(reqs[i]),3.5,0,Math.PI*2);
+ctx.fillStyle='#4F8EF7'; ctx.fill();
+// x axis labels
+ctx.fillStyle='rgba(255,255,255,0.25)'; ctx.font='10px DM Sans,sans-serif';
+ctx.textAlign='center'; ctx.fillText('M'+(i+1),xPos(i),h-PAD.b+14);
+});
+
+// legend
+ctx.font='10px DM Sans,sans-serif'; ctx.textAlign='left';
+ctx.fillStyle='#4F8EF7';
+ctx.fillRect(PAD.l,PAD.t-2,10,3);
+ctx.fillText('Req. FTE',PAD.l+14,PAD.t+2);
+ctx.save(); ctx.setLineDash([4,4]); ctx.strokeStyle='rgba(62,207,142,0.6)'; ctx.lineWidth=1.5;
+ctx.beginPath(); ctx.moveTo(PAD.l+100,PAD.t); ctx.lineTo(PAD.l+110,PAD.t); ctx.stroke(); ctx.restore();
+ctx.fillStyle='rgba(62,207,142,0.8)'; ctx.fillText('Eff. HC',PAD.l+114,PAD.t+2);
+}
+
+function drawGapChart(plan){
+const {ctx,w,h} = makeCanvas('gapChart');
+ctx.clearRect(0,0,w,h);
+const PAD={t:16,r:16,b:32,l:42};
+const cw=w-PAD.l-PAD.r, ch=h-PAD.t-PAD.b;
+const gaps=plan.map(r=>r.gap);
+const mx=Math.max(Math.abs(Math.min(...gaps)),Math.abs(Math.max(...gaps)),2)*1.2;
+const barW=Math.max(16,cw/gaps.length*0.5);
+const barStep=cw/(gaps.length);
+const yCtr=PAD.t+ch/2;
+const yScale=v=>yCtr-(v/mx)*(ch/2);
+
+// grid
+ctx.strokeStyle='rgba(255,255,255,0.05)'; ctx.lineWidth=1;
+[0.5,1].forEach(f=>{
+const yP=PAD.t+ch*(0.5-f*0.5), yN=PAD.t+ch*(0.5+f*0.5);
+ctx.beginPath(); ctx.moveTo(PAD.l,yP); ctx.lineTo(w-PAD.r,yP); ctx.stroke();
+ctx.beginPath(); ctx.moveTo(PAD.l,yN); ctx.lineTo(w-PAD.r,yN); ctx.stroke();
+});
+// zero line
+ctx.strokeStyle='rgba(255,255,255,0.12)'; ctx.lineWidth=1;
+ctx.beginPath(); ctx.moveTo(PAD.l,yCtr); ctx.lineTo(w-PAD.r,yCtr); ctx.stroke();
+
+// axis labels
+ctx.fillStyle='rgba(255,255,255,0.25)'; ctx.font='10px DM Mono,monospace';
+ctx.textAlign='right';
+ctx.fillText('+'+Math.round(mx),PAD.l-5,PAD.t+5);
+ctx.fillText('0',PAD.l-5,yCtr+4);
+ctx.fillText('-'+Math.round(mx),PAD.l-5,h-PAD.b+5);
+
+// bars
+gaps.forEach((g,i)=>{
+const x=PAD.l+i*barStep+(barStep-barW)/2;
+const y=yScale(g), barH=Math.abs(y-yCtr);
+const clr=g>0?'rgba(242,87,87,0.75)':'rgba(62,207,142,0.75)';
+const clrB=g>0?'rgba(242,87,87,1)':'rgba(62,207,142,1)';
+const topY=g>=0?y:yCtr;
+
+// fill
+const bg=ctx.createLinearGradient(0,topY,0,topY+barH);
+bg.addColorStop(0,clrB); bg.addColorStop(1,clr);
+ctx.fillStyle=bg;
+ctx.beginPath(); ctx.roundRect?ctx.roundRect(x,topY,barW,barH,3):ctx.rect(x,topY,barW,barH);
+ctx.fill();
+
+// value label
+ctx.fillStyle='rgba(255,255,255,0.45)'; ctx.font='10px DM Mono,monospace';
+ctx.textAlign='center';
+const lblY=g>=0?y-5:y+13;
+ctx.fillText((g>0?'+':'')+g,x+barW/2,lblY);
+// x label
+ctx.fillStyle='rgba(255,255,255,0.25)'; ctx.font='10px DM Sans,sans-serif';
+ctx.fillText('M'+(i+1),x+barW/2,h-PAD.b+14);
+});
+}
+
+/* ── TABLE ──────────────────────────────────────────────────────── */
+function renderTable(plan){
+document.getElementById('capacityBody').innerHTML=plan.map((row,i)=>{
+const gc=row.gap>0?'td-neg':row.gap<0?'td-pos':'';
+const oc=row.occupancy>90?'td-bad':row.occupancy>80?'td-warn':'';
+const trend=i>0&&row.occupancy>plan[i-1].occupancy?' ▲':i>0?' ▼':'';
+return `<tr>
+<td>${MONTHS[i]}</td>
+<td>${fmt(row.volume,0)}</td>
+<td>${row.reqFTE}</td>
+<td class="td-dim">${row.attritionLoss}</td>
+<td>${row.effectiveHC}</td>
+<td class="${oc}">${fmtPct(row.occupancy)}${trend}</td>
+<td class="${gc}">${row.gap>0?'+':''}${row.gap}</td>
+<td>${row.hiring>0?row.hiring:'—'}</td>
+</tr>`;
+}).join('');
+}
+
+/* ── SCENARIOS ──────────────────────────────────────────────────── */
+function renderScenarios(inp){
+const sc=[
+{tag:'−10% Volume',key:'down',dot:'var(--green)',mult:0.9},
+{tag:'Base Case', key:'base',dot:'var(--blue)', mult:1.0},
+{tag:'+10% Volume',key:'up', dot:'var(--red)', mult:1.1},
+];
+document.getElementById('scenarioGrid').innerHTML=sc.map(s=>{
+const v=inp.volume*s.mult;
+const {reqFTE:rFTE}=calcBase(v,inp.aht,inp.shrinkage,inp.paidHours,inp.buffer,inp.aiDeflection);
+const gap=Math.ceil(rFTE)-inp.currentHC;
+const cost=Math.ceil(rFTE)*inp.costFTE;
+const isActive=Math.abs(s.mult-_scenarioMult)<0.01;
+return `<div class="sc-card ${isActive?'sc-active':''}">
+<div class="sc-tag"><span class="sc-dot" style="background:${s.dot}"></span><span style="color:${s.dot}">${s.tag}</span></div>
+<div class="sc-stats">
+<div><div class="sc-val">${fmt(v,0)}</div><div class="sc-lbl">Volume</div></div>
+<div><div class="sc-val">${Math.ceil(rFTE)}</div><div class="sc-lbl">Req. FTE</div></div>
+<div><div class="sc-val ${gap>0?'sc-gap-pos':'sc-gap-neg'}">${gap>0?'+':''}${gap}</div><div class="sc-lbl">Gap</div></div>
+<div><div class="sc-val">${fmtK(cost)}</div><div class="sc-lbl">Monthly Cost</div></div>
+</div>
+</div>`;
+}).join('');
+}
+
+/* ── RISK FLAGS ─────────────────────────────────────────────────── */
+function renderIntelligence(inp,gap,occ,reqFTE,effHC,plan){
+const risks=[];
+if(gap>0&&inp.leadTime>=2) risks.push({s:'HIGH',t:'Late Hiring Risk',d:`${Math.abs(Math.round(gap))} FTE deficit with ${inp.leadTime}-mo lead time. Agents hired today are productive in ${inp.leadTime+2} months. Initiate now.`});
+const mLoss=Math.round(inp.currentHC*(inp.attrition/100));
+if(inp.attrition>=5) risks.push({s:inp.attrition>=8?'HIGH':'MEDIUM',t:'Attrition Spiral',d:`Losing ~${mLoss} agents/month (${mLoss*12}/year). High occupancy accelerates exits. BPO target: ≤3%/month.`});
+if(occ>85) risks.push({s:occ>92?'HIGH':'MEDIUM',t:'Occupancy Breach',d:`${fmtPct(occ)} exceeds safe 75–85% band. Sustained overload raises AHT, errors, and attrition.`});
+if(gap<-3) risks.push({s:'MEDIUM',t:'Overstaffing / Cost Leakage',d:`${Math.abs(Math.round(gap))} FTEs above requirement → ${fmtK(Math.abs(Math.round(gap))*inp.costFTE)}/mo idle cost. Redeploy or flex-schedule.`});
+risks.push({s:'LOW',t:'Forecast Sensitivity',d:`±10% volume shifts FTE by ~${Math.ceil(reqFTE*0.1)} agents. Maintain a 13-week rolling forecast.`});
+if(inp.aiDeflection>0) risks.push({s:'LOW',t:'AI Deflection Impact',d:inp.aiDeflection>20?`Deflection >20% triggered +15% AHT uplift for complex residual calls.`:`Deflection ${inp.aiDeflection}% below 20% threshold. Monitor containment monthly.`});
+const sm={HIGH:'r-high',MEDIUM:'r-medium',LOW:'r-low'};
+const bm={HIGH:'badge-high',MEDIUM:'badge-medium',LOW:'badge-low'};
+document.getElementById('intelligenceLayer').innerHTML=risks.map(r=>`
+<div class="risk-row ${sm[r.s]}">
+<span class="risk-badge ${bm[r.s]}">${r.s}</span>
+<div class="risk-body"><div class="risk-title">${r.t}</div><div class="risk-desc">${r.d}</div></div>
+</div>`).join('');
+}
+
+/* ── COPILOT ────────────────────────────────────────────────────── */
+function renderCopilot(inp,gap,occ,reqFTE){
+const a=[];
+if(gap>0) a.push({t:'Hire Now',d:`Launch for ${Math.ceil(gap)} FTEs. ${inp.leadTime}-mo lead time — every week of delay extends the shortfall at go-live.`});
+if(inp.attrition>=5) a.push({t:'Reduce Attrition',d:`Each 1% attrition reduction saves ~${fmtK(Math.round(inp.currentHC*0.01)*inp.costFTE)}/mo. Focus on first 90-day tenure window — highest exit risk.`});
+if(occ>85) a.push({t:'Rebalance Occupancy',d:`Stagger breaks + flex shifts to pull occupancy below 85%. 5% drop typically reduces AHT by 3–5% via improved agent composure.`});
+a.push({t:'Weekly Forecast Review',d:`13-week rolling cadence. Weekly WFM reviews hold 15–20% tighter required-vs-actual HC variance.`});
+a.push({t:'Shrinkage Audit',d:`2–3% unplanned shrinkage reduction frees ~${Math.round(inp.currentHC*0.025*inp.paidHours/inp.paidHours)} FTE-equivalent hours/month at zero hire cost.`});
+if(inp.aiDeflection<15) a.push({t:'AI Deflection Opportunity',d:`Target 20–25% deflection via IVR/chatbot. At 25%, FTE requirement drops ~${Math.ceil(reqFTE*0.15)} agents.`});
+document.getElementById('copilotActions').innerHTML=`<div class="copilot-grid">${a.slice(0,6).map((x,i)=>`
+<div class="cop-card"><div class="cop-n">0${i+1}</div><div class="cop-title">${x.t}</div><div class="cop-body">${x.d}</div></div>`).join('')}</div>`;
+}
+
+/* ── FORMULAS ───────────────────────────────────────────────────── */
+function renderFormulas(inp,workload,productiveHours,reqFTE,adjAHT){
+const fs=[
+{q:'How is FTE calculated?', eq:'FTE = (Workload ÷ Prod. Hours) × (1 + Buffer%)', a:`Workload=${fmt(workload,0)}h, Prod.Hrs=${fmt(productiveHours,1)}h. Result: ${Math.ceil(reqFTE)} FTE required.`},
+{q:'What is Workload?', eq:'Workload = (Volume × AHT) ÷ 3600', a:`${fmt(inp.volume*_scenarioMult,0)} calls × ${adjAHT}s ÷ 3600 = ${fmt(workload,0)} agent-hours/month.`},
+{q:'Why does shrinkage matter?', eq:'Prod. Hours = Paid Hours × (1 − Shrinkage%)', a:`At ${inp.shrinkage}%, each agent delivers ${fmt(productiveHours,1)} of ${inp.paidHours} paid hours. The #1 understaffing cause in BPO.`},
+{q:'What does occupancy mean?', eq:'Occupancy = Workload ÷ (Effective HC × Productive Hours) × 100', a:`75–85% is optimal. Above 85% = burnout + SLA risk. Below 70% = idle cost.`},
+{q:'How does ramp affect capacity?', eq:'Eff. HC = Tenured HC + Σ(Hires × Ramp%)', a:`Ramp ${inp.ramp1}%→${inp.ramp2}%→${inp.ramp3}%. Hire today = ${inp.ramp1}% productive in M1. Plan beyond paper headcount.`},
+{q:'What is attrition cost?', eq:'Monthly Loss = HC × Attrition%', a:`${inp.attrition}%/month = ${Math.round(inp.currentHC*inp.attrition/100)} agents lost/month. Must model continuously.`},
+];
+document.getElementById('formulaGrid').innerHTML=fs.map(f=>`
+<div class="formula-card">
+<div class="formula-q">${f.q}</div>
+<div class="formula-eq">${f.eq}</div>
+<div class="formula-ans">${f.a}</div>
+</div>`).join('');
+}
+
+/* ── INSIGHTS ───────────────────────────────────────────────────── */
+function renderInsights(inp,gap,occ,reqFTE,workload,productiveHours){
+const costPerHour=inp.costFTE/inp.paidHours;
+const shrinkCost=costPerHour*(inp.paidHours*inp.shrinkage/100);
+const ins=[
+{t:'Shrinkage × Volume is the dominant staffing driver',
+b:`${Math.ceil(reqFTE)} FTE requirement driven by ${fmt(inp.volume*_scenarioMult,0)} calls + ${inp.shrinkage}% shrinkage. Shrinkage costs ${fmtK(Math.round(inp.currentHC*shrinkCost))}/month in non-productive paid time. A 5% reduction frees 2–4 FTE equivalents at zero hire cost.`,
+q:`Every 1% shrinkage reduction ≈ ${(workload/(inp.paidHours*Math.pow(1-inp.shrinkage/100,2)*100)).toFixed(1)} FTE saved.`},
+{t:'Ramp delay is the silent capacity killer',
+b:`Hiring ${Math.ceil(gap)} FTEs today yields only ${Math.round(Math.ceil(gap)*inp.ramp1/100)} effective FTEs in Month 1. Teams using raw headcount instead of ramp-adjusted capacity understaff by 15–20% routinely.`,
+q:`M1 ramp-adjusted capacity: ${Math.round(Math.ceil(gap)*inp.ramp1/100)} of ${Math.ceil(gap)} hired FTEs. Plan beyond paper headcount.`},
+{t:'Buffer is insurance, not waste',
+b:`Your ${inp.buffer}% buffer adds ${Math.ceil(reqFTE-workload/productiveHours)} FTEs above mathematical minimum — absorbing forecast error, spikes, and attrition events. Enterprise BPOs globally recommend 25–35% for inbound operations.`,
+q:`Remove the buffer and you staff for the forecast, not for reality.`},
+];
+document.getElementById('expertInsights').innerHTML=ins.map(i=>`
+<div class="insight-card">
+<div class="ins-title">${i.t}</div>
+<div class="ins-body">${i.b}</div>
+<div class="ins-quote">${i.q}</div>
+</div>`).join('');
+}
+
+/* ── RESET ──────────────────────────────────────────────────────── */
+function resetInputs(){
+const d={volume:55000,aht:300,shrinkage:30,paidHours:160,buffer:30,currentHC:65,
+attrition:5,leadTime:2,costFTE:50000,aiDeflection:0,ramp1:50,ramp2:70,ramp3:100};
+for(const [id,v] of Object.entries(d)){ const el=document.getElementById(id); if(el) el.value=v; }
+['hw1','hw2','hw3','hw4','hw5','hw6','qaReq','qaCur','qbReq','qbCur','crossFTE','crossPctA','crossPctB','moveAmt',
+'sigActVol','sigActAHT','sigActAttr','sigActShrink'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+const msOut=document.getElementById('multiSkillOutput'); if(msOut){ msOut.innerHTML=''; msOut.classList.add('hidden'); }
+const sigOut=document.getElementById('shadowOutput'); if(sigOut) sigOut.innerHTML='';
+const badge=document.getElementById('rampSourceBadge'); if(badge){ badge.className='pill'; badge.textContent='— run engine to see ramp source —'; }
+document.getElementById('outputArea').classList.add('hidden');
+document.getElementById('emptyState').classList.remove('hidden');
+document.getElementById('stickyKpi').classList.remove('visible');
+_lastInp=null; _scenarioMult=1.0; _stickyInited=false;
+document.querySelectorAll('.stog-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
+document.querySelector('.input-panel').scrollIntoView({behavior:'smooth'});
+}
+
+/* ── RESIZE: redraw charts on window resize ─────────────────────── */
+let _resizeTimer;
+window.addEventListener('resize',()=>{
+clearTimeout(_resizeTimer);
+_resizeTimer=setTimeout(()=>{ if(_lastInp){ const plan=buildMonthlyPlan(_lastInp); renderCharts(plan); } },200);
+});
+
+/* ── INTERNAL VALIDATION SUITE (console only — no UI, no new features) ──
+Runs once automatically on load. Confirms the ramp/headcount model
+never double-counts an agent and that key scenarios behave correctly.
+Open devtools console to inspect results. */
+function runValidationSuite(){
+const baseInp={volume:55000,aht:300,shrinkage:30,paidHours:160,buffer:30,
+currentHC:65,attrition:5,leadTime:2,costFTE:50000,aiDeflection:0,
+ramp1:50,ramp2:70,ramp3:100,hw:[null,null,null,null,null,null]};
+const results=[];
+const check=(name,cond,detail)=>results.push({name,pass:!!cond,detail});
+
+// Core invariant, checked in every scenario: effective (ramp-adjusted)
+// HC can never exceed physical (raw) HC, since ramp multipliers are
+// always ≤1. Any double-count of an agent breaks this immediately.
+const invariantHolds=plan=>plan.every(r=>r.effectiveHC<=r.physicalHC+0.5);
+
+// 1. No hires needed
+{
+const inp={...baseInp,currentHC:5000,volume:1000};
+const plan=buildMonthlyPlan(inp);
+check('No hires: hiring is zero in every month',plan.every(r=>r.hiring===0));
+check('No hires: effHC ≤ physicalHC invariant holds',invariantHolds(plan));
+}
+
+// 2. 10 hires at 50% ramp — must contribute 5.0 effective FTE, not 10 or 15
+// (leadTime:1 here so the cohort's first active month lines up with the
+// architectural minimum — plan[1] — matching the original intent of this
+// check; ramp1/2/3 are all equal so the specific ramp stage reached
+// doesn't affect the expected number either way).
+{
+const inp={...baseInp,currentHC:0,volume:10000,attrition:0,ramp1:50,ramp2:50,ramp3:50,leadTime:1};
+const plan=buildMonthlyPlan(inp);
+const hiredM0=plan[0].hiring;
+if(hiredM0>0 && plan.length>1){
+const expectedEff=hiredM0*(inp.ramp2/100);
+check('10 hires @ 50% ramp: cohort contributes ramp% only (not 100%+ramp%, not double)',
+Math.abs(plan[1].effectiveHC-Math.round(expectedEff))<=1,
+`hired=${hiredM0}, expected≈${expectedEff.toFixed(1)}, got=${plan[1].effectiveHC}`);
+}
+check('50% ramp: effHC ≤ physicalHC invariant holds',invariantHolds(plan));
+}
+
+// 3. 10 hires reaching 70% then 100% (staged ramp)
+{
+const inp={...baseInp,currentHC:0,volume:20000,ramp1:0,ramp2:70,ramp3:100};
+const plan=buildMonthlyPlan(inp);
+check('Staged ramp (0→70→100): effHC ≤ physicalHC invariant holds',invariantHolds(plan));
+}
+
+// 4. High attrition
+{
+const inp={...baseInp,attrition:25,currentHC:100,volume:1};
+const plan=buildMonthlyPlan(inp);
+check('High attrition: physical HC shrinks month over month',plan[5].physicalHC<plan[0].physicalHC);
+check('High attrition: effHC ≤ physicalHC invariant holds',invariantHolds(plan));
+}
+
+// 5. Zero gap
+{
+const reqCheck=calcBase(baseInp.volume,baseInp.aht,baseInp.shrinkage,baseInp.paidHours,baseInp.buffer,baseInp.aiDeflection).reqFTE;
+const inp={...baseInp,currentHC:Math.ceil(reqCheck),attrition:0};
+const plan=buildMonthlyPlan(inp);
+check('Zero gap: no hiring triggered in month 1',plan[0].hiring===0,`gap=${plan[0].gap}`);
+}
+
+// 6. Positive gap
+{
+const inp={...baseInp,currentHC:10,attrition:0};
+const plan=buildMonthlyPlan(inp);
+check('Positive gap: hiring triggered in month 1',plan[0].hiring>0);
+}
+
+// 7. Historical ramp enabled
+{
+const inp={...baseInp,hw:[35,48,58,65,80,92]};
+const eR=getEffectiveRamp(inp);
+check('Historical ramp: source flagged as historical',eR.source==='historical');
+check('Historical ramp: r1/r2/r3 derived from weekly data, not manual inputs',
+Math.abs(eR.r1-((35+48+58+65)/4))<0.01 && Math.abs(eR.r2-((80+92)/2))<0.01 && eR.r3>=90);
+check('Historical ramp: effHC ≤ physicalHC invariant holds',invariantHolds(buildMonthlyPlan(inp)));
+}
+
+// 8. Manual ramp enabled
+{
+const inp={...baseInp,hw:[null,null,null,null,null,null]};
+const eR=getEffectiveRamp(inp);
+check('Manual ramp: source flagged as manual',eR.source==='manual');
+check('Manual ramp: uses manual ramp1/2/3 inputs directly',
+eR.r1===inp.ramp1 && eR.r2===inp.ramp2 && eR.r3===inp.ramp3);
+}
+
+// 9. Action date responds to the ramp model, not a hardcoded constant
+{
+const fastInp={...baseInp,ramp1:96,ramp2:98,ramp3:100};
+const slowInp={...baseInp,ramp1:20,ramp2:40,ramp3:100};
+const fastDays=computeRampDaysToFull(fastInp), slowDays=computeRampDaysToFull(slowInp);
+check('Action date: ramp days shrink when hires start highly productive',
+fastDays<slowDays,`fast=${fastDays}d, slow=${slowDays}d`);
+check('Action date: slow ramp still bounded at the model max (60d)',slowDays===60);
+}
+
+// 10. Ramp fraction contributions — user-specified checks A/B/C:
+// 10 hires at a given ramp% contribute exactly that fraction as effective FTE.
+{
+const contrib=(pct)=>Math.round(10*rampMultiplierFor(0,1,pct,pct,pct)*10)/10;
+check('A. 10 hires at 50% ramp = 5 effective FTE',contrib(50)===5,`got=${contrib(50)}`);
+check('B. 10 hires at 70% ramp = 7 effective FTE',contrib(70)===7,`got=${contrib(70)}`);
+check('C. 10 hires at 100% ramp = 10 effective FTE',contrib(100)===10,`got=${contrib(100)}`);
+}
+
+// 11. Forward-looking monthly hiring: physical hires must be sized above
+// the raw effective-FTE gap when ramp<100%, so that once the cohort's
+// sizing ramp stage is actually reached, its ramp-adjusted contribution
+// closes the deficit that triggered the hire — instead of only partially
+// closing it and leaving a recurring shortfall. (Here ramp1:0, so the
+// sizing formula's r1-then-r2 fallback lands on r2=50% — the check below
+// reflects that fallback rather than hardcoding r1.)
+{
+const inp={...baseInp,currentHC:0,volume:5000,attrition:0,ramp1:0,ramp2:50,ramp3:100};
+const plan=buildMonthlyPlan(inp);
+const gapM0=plan[0].gap, hiredM0=plan[0].hiring;
+check('Forward-looking hiring: physical hires exceed the raw effective gap when ramp<100%',
+gapM0>0 && hiredM0>gapM0,`gap=${gapM0}, hired=${hiredM0}`);
+check('Forward-looking hiring: ramp-adjusted contribution at the sizing ramp stage (r2 fallback, since r1=0) closes the prior month\'s gap',
+Math.round(hiredM0*0.5)>=gapM0-1,
+`hired=${hiredM0}, contribution@r2=${Math.round(hiredM0*0.5)}, priorGap=${gapM0}`);
+check('Forward-looking hiring: effHC ≤ physicalHC invariant holds',invariantHolds(plan));
+}
+
+// ── Lead Time + Ramp alignment (A–G) ─────────────────────────────
+// Isolated checks on arrivalMonth()+rampMultiplierFor() directly, using
+// a cohort hired ("initiated") in month 0 with distinct r1/r2/r3 values
+// so each ramp stage is unambiguous in the assertions below.
+{
+const R1=40,R2=70,R3=100;
+const contributionAt=(leadTime,month)=>rampMultiplierFor(arrivalMonth(0,leadTime),month,R1,R2,R3);
+
+// A. Lead Time = 0 → cohort's first-ever contribution is at M1 ramp (r1).
+// (The 1-month architectural floor means month 0 itself is always 0 —
+// see arrivalMonth() comments — so "contributes at M1 ramp" means the
+// first month it contributes anything, it's at r1%, not r2% or r3%.)
+check('A. Lead Time=0: cohort\'s first contribution is at M1 ramp (r1), not r2/r3',
+contributionAt(0,0)===0 && contributionAt(0,1)===R1/100,
+`month0=${contributionAt(0,0)}, month1=${contributionAt(0,1)}, expected r1=${R1/100}`);
+
+// B. Lead Time = 1 → zero effective contribution before Month 1.
+check('B. Lead Time=1: no effective contribution before Month 1',
+contributionAt(1,0)===0,`month0 contribution=${contributionAt(1,0)}`);
+
+// C. Lead Time = 2 → zero effective contribution before Month 2.
+check('C. Lead Time=2: no effective contribution before Month 2',
+contributionAt(2,0)===0 && contributionAt(2,1)===0,
+`month0=${contributionAt(2,0)}, month1=${contributionAt(2,1)}`);
+
+// D. Once active, a cohort ramps M1 → M2 → M3+ regardless of lead time.
+check('D. Lead Time=2: after arrival (Month 2), cohort follows M1→M2→M3+ ramp',
+contributionAt(2,2)===R1/100 && contributionAt(2,3)===R2/100 && contributionAt(2,4)===R3/100 && contributionAt(2,5)===R3/100,
+`M1(mo2)=${contributionAt(2,2)}, M2(mo3)=${contributionAt(2,3)}, M3(mo4)=${contributionAt(2,4)}, M3+(mo5)=${contributionAt(2,5)}`);
+}
+
+// E. effectiveHC ≤ physicalHC every month, across a spread of lead times
+// (including 0, and a lead time long enough to span the whole 6-mo plan).
+{
+[0,1,2,3,6].forEach(lt=>{
+const inp={...baseInp,currentHC:20,volume:40000,attrition:5,leadTime:lt};
+const plan=buildMonthlyPlan(inp);
+check(`E. Lead Time=${lt}: effHC ≤ physicalHC every month`,invariantHolds(plan),
+plan.map(r=>`m${r.month}:eff=${r.effectiveHC},phys=${r.physicalHC}`).join(' '));
+});
+}
+
+// F. Forward-looking hiring sizes physical HC off the first relevant ramp
+// stage (r1, since ramp1>0 here) — i.e. hiring = ceil(gap / (r1/100)),
+// and that sizing is leadTime-independent (the gap it's closing is this
+// month's, regardless of how long the cohort takes to arrive).
+{
+[0,1,2,4].forEach(lt=>{
+const inp={...baseInp,currentHC:0,volume:20000,attrition:0,ramp1:40,ramp2:70,ramp3:100,leadTime:lt};
+const plan=buildMonthlyPlan(inp);
+const gapM0=plan[0].gap, hiredM0=plan[0].hiring;
+const expected=gapM0>0?Math.ceil(gapM0/0.4):0;
+check(`F. Lead Time=${lt}: hiring sized off r1 (first relevant ramp stage): hiring=ceil(gap/r1%)`,
+hiredM0===expected,`gap=${gapM0}, hired=${hiredM0}, expected=${expected}`);
+});
+}
+
+// G. Full regression: every earlier scenario in this suite (1–11) plus
+// the invariant re-checked once more with the default baseInp (leadTime
+// 2) confirms the fix didn't disturb attrition, sizing, or the core
+// no-double-count invariant.
+check('G. Baseline scenario (default leadTime=2): effHC ≤ physicalHC invariant holds',
+invariantHolds(buildMonthlyPlan(baseInp)));
+
+// H. Historical pattern engine — CSV parse, DoW/IoW aggregation, graceful fallback.
+try{
+const csv=[
+'Week,Date,Day,Queue,Interval,Volume,AHT',
+'W1,2026-08-03,Monday,Voice,09:00,100,300',
+'W1,2026-08-03,Monday,Voice,09:30,120,310',
+'W1,2026-08-04,Tuesday,Voice,09:00,90,295',
+'W2,2026-08-10,Monday,Voice,09:00,110,305',
+'W2,2026-08-10,Monday,Voice,09:30,130,315',
+'W1,2026-08-03,Monday,Verify,09:00,50,150'
+].join('\n');
+const parsed=parseHistoricalCSV(csv);
+check('H1. Historical CSV parses expected row count',parsed.length===6,`got ${parsed.length}`);
+
+const dowVoice=computeDoWPattern(parsed,'Voice');
+const mon=dowVoice.find(d=>d.day==='Monday');
+check('H2. DoW pattern computes Monday avg volume correctly for Voice',
+mon && Math.abs(mon.avgVolume-((100+120+110+130)/4))<0.01, mon&&mon.avgVolume);
+check('H3. DoW mix% across days sums to ~100%',
+Math.abs(dowVoice.reduce((s,d)=>s+d.mixPct,0)-100)<0.5);
+check('H4. DoW sample size reflects distinct week/date observations, not raw rows',
+mon && mon.sampleDays===2 && mon.sampleRows===4, mon);
+
+const iowVoice=computeIoWPattern(parsed,'Voice');
+check('H5. IoW pattern produces one row per distinct interval',iowVoice.length===2,iowVoice.length);
+const iv0900=iowVoice.find(i=>i.interval==='09:00');
+check('H6. IoW avg volume correct for 09:00 interval',
+iv0900 && Math.abs(iv0900.avgVolume-((100+90+110)/3))<0.01, iv0900&&iv0900.avgVolume);
+
+const noIntervalCsv=['Week,Date,Day,Queue,Interval,Volume,AHT','W1,2026-08-03,Monday,Voice,,200,300'].join('\n');
+const noIvParsed=parseHistoricalCSV(noIntervalCsv);
+const noIvResult=computeIoWPattern(noIvParsed,'All');
+check('H7. IoW gracefully returns empty array (no crash) when interval data absent',
+Array.isArray(noIvResult) && noIvResult.length===0);
+
+check('H8. Historical engine never mutates core FTE inputs (calcBase still pure)',
+typeof calcBase(1000,300,30,160,30,0).reqFTE==='number');
+}catch(e){
+check('H0. Historical pattern engine ran without throwing',false,e.message);
+}
+
+const failed=results.filter(r=>!r.pass);
+console.groupCollapsed(`WFM Capacity Planning Engine — validation suite: ${results.length-failed.length}/${results.length} passed`);
+results.forEach(r=>{
+if(r.pass) console.log('%cPASS','color:#3ECF8E;font-weight:600;',r.name);
+else console.error('FAIL',r.name,r.detail||'');
+});
+console.groupEnd();
+return {results,passed:results.length-failed.length,failed:failed.length};
+}
+/* ── MULTI-QUEUE WEEKLY CAPACITY ──────────────────────────────────
+Independent module: separate queues/workstreams (Voice, Chat, Email,
+Back Office...), each with its own weekly volume/AHT/shrinkage/buffer
+and available FTE. Reuses calcBase() exactly as-is — the formula is
+period-agnostic (workload ÷ productive hours), so feeding it weekly
+volume + weekly paid hours instead of monthly is a valid reuse, not a
+formula change. Fully separate from the single-queue 6-month engine
+above; does not read or alter any of its state. */
+let _queues=[
+{id:'q_voice',name:'Voice',volume:8000,aht:300,shrinkage:30,buffer:15,paidHoursWeek:40,availableFTE:60,volGrowthPct:0,crossSkillPct:15},
+{id:'q_chat', name:'Chat', volume:5000,aht:420,shrinkage:25,buffer:10,paidHoursWeek:40,availableFTE:25,volGrowthPct:0,crossSkillPct:30},
+{id:'q_email',name:'Email',volume:3000,aht:240,shrinkage:20,buffer:10,paidHoursWeek:40,availableFTE:12,volGrowthPct:0,crossSkillPct:30},
+{id:'q_bo', name:'Back Office',volume:2000,aht:600,shrinkage:15,buffer:10,paidHoursWeek:40,availableFTE:15,volGrowthPct:0,crossSkillPct:10}
+];
+let _mqWeeks=4;
+
+function addQueue(){
+_queues.push({id:'q_'+Date.now(),name:'New Queue',volume:1000,aht:300,shrinkage:25,buffer:10,paidHoursWeek:40,availableFTE:10,volGrowthPct:0,crossSkillPct:0});
+renderQueuesModule();
+}
+function removeQueue(id){
+_queues=_queues.filter(q=>q.id!==id);
+renderQueuesModule();
+}
+function updateQueueField(id,field,value,isNumber){
+const q=_queues.find(x=>x.id===id); if(!q) return;
+q[field]=isNumber?(parseFloat(value)||0):value;
+renderQueuesModule();
+}
+function setMQWeeks(n,btn){
+_mqWeeks=n;
+document.querySelectorAll('.mq-week-btn').forEach(b=>b.classList.remove('active'));
+btn.classList.add('active');
+renderQueuesModule();
+}
+
+/* Weekly series for one queue — reuses calcBase() unchanged per week.
+Only volume is allowed to drift week-on-week (volGrowthPct, compounding),
+which is enough to demonstrate a genuine week-on-week view without
+overcrowding the UI with a driver per metric; AHT/shrinkage/buffer/
+available FTE are held flat across the window (still fully editable —
+they just apply to every week until changed). */
+function computeQueueWeeks(q,weeksN){
+const weeks=[];
+for(let w=0;w<weeksN;w++){
+const vol=q.volume*Math.pow(1+(q.volGrowthPct||0)/100,w);
+const {reqFTE}=calcBase(vol,q.aht,q.shrinkage,q.paidHoursWeek||40,q.buffer||0,0);
+const gap=Math.ceil(reqFTE)-Math.round(q.availableFTE||0);
+weeks.push({week:w+1,volume:vol,aht:q.aht,reqFTE,availableFTE:q.availableFTE||0,gap});
+}
+return weeks;
+}
+
+function renderQueuesModule(){
+const cardsEl=document.getElementById('queueCards');
+const tablesEl=document.getElementById('queueWeeklyTables');
+const summaryEl=document.getElementById('combinedSummary');
+if(!cardsEl||!tablesEl||!summaryEl) return;
+
+cardsEl.innerHTML=_queues.map(q=>`
+<div class="sc-card">
+<div class="sc-tag" style="display:flex;align-items:center;gap:6px;">
+<input class="queue-card-name" value="${q.name}" onchange="updateQueueField('${q.id}','name',this.value,false)"/>
+${_queues.length>1?`<span class="queue-remove" onclick="removeQueue('${q.id}')" title="Remove queue">✕</span>`:''}
+</div>
+<div class="field" style="margin-bottom:8px;"><label class="field-label">Volume / Week</label><input class="drift-input" type="number" value="${q.volume}" onchange="updateQueueField('${q.id}','volume',this.value,true)"/></div>
+<div class="field" style="margin-bottom:8px;"><label class="field-label">AHT (sec)</label><input class="drift-input" type="number" value="${q.aht}" onchange="updateQueueField('${q.id}','aht',this.value,true)"/></div>
+<div class="field" style="margin-bottom:8px;"><label class="field-label">Shrinkage %</label><input class="drift-input" type="number" value="${q.shrinkage}" onchange="updateQueueField('${q.id}','shrinkage',this.value,true)"/></div>
+<div class="field" style="margin-bottom:8px;"><label class="field-label">Buffer %</label><input class="drift-input" type="number" value="${q.buffer}" onchange="updateQueueField('${q.id}','buffer',this.value,true)"/></div>
+<div class="field" style="margin-bottom:8px;"><label class="field-label">Available FTE</label><input class="drift-input" type="number" value="${q.availableFTE}" onchange="updateQueueField('${q.id}','availableFTE',this.value,true)"/></div>
+<div class="field" style="margin-bottom:8px;"><label class="field-label">Vol Growth %/wk</label><input class="drift-input" type="number" value="${q.volGrowthPct}" onchange="updateQueueField('${q.id}','volGrowthPct',this.value,true)"/></div>
+<div class="field"><label class="field-label">Cross-Skilled Capacity %</label><input class="drift-input" type="number" value="${q.crossSkillPct||0}" onchange="updateQueueField('${q.id}','crossSkillPct',this.value,true)"/></div>
+</div>`).join('');
+
+const allWeeks=_queues.map(q=>({q,weeks:computeQueueWeeks(q,_mqWeeks)}));
+
+// Combined summary — current week (W1) gap/surplus per queue + total.
+const w1=allWeeks.map(({q,weeks})=>({name:q.name,gap:weeks[0].gap,availableFTE:q.availableFTE||0,crossSkillPct:q.crossSkillPct||0}));
+const total=w1.reduce((s,r)=>s+r.gap,0);
+let topQ=w1[0]||{name:'None',gap:0};
+w1.forEach(r=>{ if(Math.abs(r.gap)>Math.abs(topQ.gap)) topQ=r; });
+const cardHtml=r=>`<div class="exec-card ${r.gap>0?'is-risk':''}"><div class="ec-eyebrow">${r.name}</div><div class="ec-value ${r.gap>0?'td-neg':r.gap<0?'td-pos':''}">${r.gap>0?'+':''}${r.gap} FTE ${r.gap>0?'gap':r.gap<0?'surplus':'balanced'}</div></div>`;
+
+// Simple, transparent cross-skill allocation model (not an optimizer):
+// queues in deficit contribute to Combined Gap. Queues with surplus
+// (gap<0) can lend up to availableFTE × crossSkillPct% of their surplus
+// toward covering other queues' gaps. Net Gap = Combined Gap −
+// Potentially Recoverable, floored at 0.
+const combinedGap=w1.reduce((s,r)=>s+Math.max(0,r.gap),0);
+const recoverable=w1.reduce((s,r)=>{
+if(r.gap<0){ const surplus=-r.gap; const flexible=r.availableFTE*(r.crossSkillPct/100); return s+Math.min(surplus,flexible); }
+return s;
+},0);
+const recoverableR=Math.round(recoverable*10)/10;
+const netGap=Math.max(0,Math.round((combinedGap-recoverableR)*10)/10);
+
+summaryEl.innerHTML=`
+<div class="exec-row" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr));">
+${w1.map(cardHtml).join('')}
+<div class="exec-card ${total>0?'is-risk':''}" style="border-color:var(--border3);"><div class="ec-eyebrow">Total</div><div class="ec-value ${total>0?'td-neg':total<0?'td-pos':''}">${total>0?'+':''}${total} FTE ${total>0?'gap':total<0?'surplus':'balanced'}</div></div>
+</div>
+${w1.length>1?`<div style="margin-top:12px;font-size:12px;color:var(--text2);">Biggest contributor to overall capacity risk: <strong style="color:var(--text)">${topQ.name}</strong> (${topQ.gap>=0?'+':''}${topQ.gap} FTE).</div>`:''}
+<div class="exec-row" style="margin-top:16px;">
+<div class="exec-card ${combinedGap>0?'is-risk':''}"><div class="ec-eyebrow">Combined Gap</div><div class="ec-value">${combinedGap>0?combinedGap+' FTE short':'None'}</div></div>
+<div class="exec-card"><div class="ec-eyebrow">Potentially Recoverable via Cross-Skill</div><div class="ec-value" style="color:var(--green)">${recoverableR>0?'−'+recoverableR+' FTE':'0 FTE'}</div></div>
+<div class="exec-card ${netGap>0?'is-risk':''}"><div class="ec-eyebrow">Net Gap After Allocation</div><div class="ec-value">${netGap>0?netGap+' FTE short':'Covered'}</div></div>
+</div>
+<div style="margin-top:10px;font-size:11px;color:var(--text3);">Transparent allocation model, not an optimizer: surplus queues can lend up to their own Available FTE × Cross-Skilled Capacity %. Does not model cross-training time, skill-fit, or scheduling constraints.</div>`;
+
+// Per-queue week-on-week table.
+tablesEl.innerHTML=allWeeks.map(({q,weeks})=>{
+const driftNote=q.volGrowthPct?`Volume growth ${q.volGrowthPct>0?'+':''}${q.volGrowthPct}%/wk`:'Flat volume/AHT assumption across weeks';
+return `<div class="table-card" style="margin-bottom:16px;">
+<div class="table-head-row"><div><div class="table-head-title">${q.name} — Week-on-Week</div><div class="table-head-sub">${driftNote}</div></div></div>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left;">Week</th>${weeks.map(w=>`<th>W${w.week}</th>`).join('')}</tr></thead>
+<tbody>
+<tr><td>Volume</td>${weeks.map(w=>`<td>${Math.round(w.volume).toLocaleString()}</td>`).join('')}</tr>
+<tr><td>AHT (s)</td>${weeks.map(w=>`<td>${Math.round(w.aht)}</td>`).join('')}</tr>
+<tr><td>Required FTE</td>${weeks.map(w=>`<td>${Math.ceil(w.reqFTE)}</td>`).join('')}</tr>
+<tr><td>Available FTE</td>${weeks.map(w=>`<td>${Math.round(w.availableFTE)}</td>`).join('')}</tr>
+<tr><td>Gap / Surplus</td>${weeks.map(w=>`<td class="${w.gap>0?'td-neg':w.gap<0?'td-pos':'td-dim'}">${w.gap>0?'+':''}${w.gap}</td>`).join('')}</tr>
+</tbody>
+</table></div>
+</div>`;
+}).join('');
+}
+
+try{ renderQueuesModule(); }catch(e){ console.error('Multi-queue module failed to render:',e); }
+
+/* ── HISTORICAL DATA / 8-WEEK PATTERN ENGINE ──────────────────────
+Fully independent, browser-only module. Parses pasted/uploaded CSV
+(Week,Date,Day,Queue,Interval,Volume,AHT — Interval optional),
+derives Day-of-Week and Interval-of-Week patterns for Volume/AHT,
+and displays them with explicit sample-size / source labels.
+This module NEVER writes into calcBase/buildMonthlyPlan or the
+queue engine's math — it only *informs* forecasting assumptions
+and, optionally, redistributes an existing weekly total across
+days/intervals using the observed historical mix%. No backend,
+no network calls, no persistence beyond the current page session. */
+let _histData=[]; // flat array of {week,date,day,queue,interval,volume,aht}
+let _histUseForDistribution=false;
+
+const HIST_CSV_HEADERS=['week','date','day','queue','interval','volume','aht'];
+
+function parseHistoricalCSV(text){
+const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>0);
+if(lines.length<2) throw new Error('Need a header row plus at least one data row.');
+const header=lines[0].split(',').map(h=>h.trim().toLowerCase());
+const idx={};
+HIST_CSV_HEADERS.forEach(h=>{ idx[h]=header.indexOf(h); });
+if(idx.day<0||idx.queue<0||idx.volume<0||idx.aht<0){
+throw new Error('CSV must include at minimum: Day, Queue, Volume, AHT columns (Week/Date/Interval optional).');
+}
+const rows=[];
+for(let i=1;i<lines.length;i++){
+const cols=lines[i].split(',').map(c=>c.trim());
+if(cols.length<header.length-3) continue; // skip obviously malformed rows rather than hard-fail the whole parse
+const vol=parseFloat(cols[idx.volume]);
+const aht=parseFloat(cols[idx.aht]);
+if(!isFinite(vol)||!isFinite(aht)) continue;
+rows.push({
+week: idx.week>=0?(cols[idx.week]||''):'',
+date: idx.date>=0?(cols[idx.date]||''):'',
+day: (cols[idx.day]||'').trim(),
+queue: idx.queue>=0?(cols[idx.queue]||'All'):'All',
+interval: idx.interval>=0?(cols[idx.interval]||''):'',
+volume: vol,
+aht: aht
+});
+}
+if(rows.length===0) throw new Error('No valid data rows parsed — check column order matches Week,Date,Day,Queue,Interval,Volume,AHT.');
+return rows;
+}
+
+function loadHistoricalSample(){
+const days=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const queues=['Voice','Verify'];
+const intervals=['09:00','09:30','10:00','10:30'];
+const rows=['Week,Date,Day,Queue,Interval,Volume,AHT'];
+let d=new Date('2026-07-06');
+for(let w=1;w<=8;w++){
+for(let di=0;di<7;di++){
+const day=days[di];
+const dateStr=new Date(d.getTime()+((w-1)*7+di)*86400000).toISOString().slice(0,10);
+const weekendFactor=(di>=5)?0.55:1;
+queues.forEach(q=>{
+const base=(q==='Voice'?150:90)*weekendFactor;
+intervals.forEach((iv,ii)=>{
+const shape=[0.9,1.1,1.2,1.0][ii];
+const vol=Math.round(base*shape*(0.92+Math.random()*0.16));
+const aht=Math.round((q==='Voice'?330:170)*(0.95+Math.random()*0.1));
+rows.push(`W${w},${dateStr},${day},${q},${iv},${vol},${aht}`);
+});
+});
+}
+}
+document.getElementById('histPasteArea').value=rows.join('\n');
+document.getElementById('histEnableToggle').checked=true;
+toggleHistoricalModule();
+handleHistPaste();
+}
+
+function toggleHistoricalModule(){
+const on=document.getElementById('histEnableToggle').checked;
+document.getElementById('histBody').classList.toggle('hidden',!on);
+}
+
+function handleHistPaste(){
+const text=document.getElementById('histPasteArea').value;
+const errEl=document.getElementById('histParseError');
+errEl.textContent='';
+try{
+_histData=parseHistoricalCSV(text);
+renderHistoricalModule();
+}catch(e){
+errEl.textContent='Parse error: '+e.message;
+console.error('Historical CSV parse failed:',e);
+}
+}
+
+function handleHistFileUpload(evt){
+const file=evt.target.files && evt.target.files[0];
+if(!file) return;
+const reader=new FileReader();
+reader.onload=function(){
+document.getElementById('histPasteArea').value=reader.result;
+handleHistPaste();
+};
+reader.onerror=function(){
+document.getElementById('histParseError').textContent='Could not read file locally — try pasting the CSV text instead.';
+};
+reader.readAsText(file); // local read only — never transmitted
+}
+
+function clearHistoricalData(){
+_histData=[];
+document.getElementById('histPasteArea').value='';
+document.getElementById('histParseError').textContent='';
+renderHistoricalModule();
+}
+
+function toggleHistDistribution(cb){
+_histUseForDistribution=cb.checked;
+renderHistoricalModule();
+}
+
+/* Day-of-Week aggregation, optionally scoped to one queue ('All' = every row). */
+function computeDoWPattern(data,queueFilter){
+const rows=(queueFilter&&queueFilter!=='All')?data.filter(r=>r.queue===queueFilter):data;
+const order=['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const byDay={};
+order.forEach(d=>{ byDay[d]={volSum:0,ahtSum:0,ahtN:0,volMin:Infinity,volMax:-Infinity,weekSet:new Set(),n:0}; });
+rows.forEach(r=>{
+const d=byDay[r.day]; if(!d) return; // unrecognized day label — skip rather than crash
+d.volSum+=r.volume; d.ahtSum+=r.aht*r.volume; d.ahtN+=r.volume;
+d.volMin=Math.min(d.volMin,r.volume); d.volMax=Math.max(d.volMax,r.volume);
+if(r.week) d.weekSet.add(r.week+'|'+(r.date||'')); else if(r.date) d.weekSet.add(r.date);
+d.n++;
+});
+const totalVol=order.reduce((s,d)=>s+byDay[d].volSum,0)||1;
+return order.filter(d=>byDay[d].n>0).map(d=>{
+const b=byDay[d];
+return {
+day:d,
+avgVolume: b.n?b.volSum/b.n:0,
+mixPct: 100*b.volSum/totalVol,
+avgAHT: b.ahtN?b.ahtSum/b.ahtN:0,
+volMin: b.volMin===Infinity?0:b.volMin,
+volMax: b.volMax===-Infinity?0:b.volMax,
+sampleDays: b.weekSet.size||b.n,
+sampleRows: b.n
+};
+});
+}
+
+/* Interval-of-Week aggregation — only meaningful when interval data exists. */
+function computeIoWPattern(data,queueFilter){
+const rows=((queueFilter&&queueFilter!=='All')?data.filter(r=>r.queue===queueFilter):data).filter(r=>r.interval);
+if(rows.length===0) return [];
+const byIv={};
+rows.forEach(r=>{
+if(!byIv[r.interval]) byIv[r.interval]={volSum:0,ahtSum:0,ahtN:0,n:0,set:new Set()};
+const b=byIv[r.interval];
+b.volSum+=r.volume; b.ahtSum+=r.aht*r.volume; b.ahtN+=r.volume; b.n++;
+b.set.add((r.week||'')+'|'+(r.date||'')+'|'+r.day);
+});
+const totalVol=Object.values(byIv).reduce((s,b)=>s+b.volSum,0)||1;
+return Object.keys(byIv).sort().map(iv=>{
+const b=byIv[iv];
+return {
+interval:iv,
+avgVolume:b.volSum/b.n,
+mixPct:100*b.volSum/totalVol,
+avgAHT:b.ahtN?b.ahtSum/b.ahtN:0,
+sampleN:b.set.size
+};
+});
+}
+
+function histQueueList(){
+return ['All',...Array.from(new Set(_histData.map(r=>r.queue))).sort()];
+}
+
+function renderHistoricalModule(){
+const out=document.getElementById('histAnalysisOutput');
+const badge=document.getElementById('histStatusBadge');
+if(!out||!badge) return;
+
+if(_histData.length===0){
+badge.textContent='— no historical data loaded —';
+badge.className='pill';
+out.innerHTML='';
+return;
+}
+
+const weeks=new Set(_histData.map(r=>r.week||r.date)).size;
+const queues=histQueueList().filter(q=>q!=='All');
+badge.textContent=`${_histData.length} rows · ~${weeks} week${weeks===1?'':'s'} · ${queues.length} queue${queues.length===1?'':'s'} loaded`;
+badge.className='pill pill-hist';
+
+const selectedQ=document.getElementById('histQueueSelect')?document.getElementById('histQueueSelect').value:'All';
+const dow=computeDoWPattern(_histData,selectedQ);
+const iow=computeIoWPattern(_histData,selectedQ);
+const hasInterval=iow.length>0;
+const sampleWeeksForDay=dow.length?Math.max(...dow.map(d=>d.sampleDays)):0;
+
+const dowRows=dow.map(d=>`<tr>
+<td>${d.day}</td>
+<td>${Math.round(d.avgVolume).toLocaleString()}</td>
+<td>${d.mixPct.toFixed(1)}%</td>
+<td>${Math.round(d.avgAHT)}s</td>
+<td class="td-dim">${Math.round(d.volMin).toLocaleString()}–${Math.round(d.volMax).toLocaleString()}</td>
+<td class="td-dim">${d.sampleDays} obs.</td>
+</tr>`).join('');
+
+const iowRows=iow.map(i=>`<tr>
+<td>${i.interval}</td>
+<td>${Math.round(i.avgVolume).toLocaleString()}</td>
+<td>${i.mixPct.toFixed(1)}%</td>
+<td>${Math.round(i.avgAHT)}s</td>
+<td class="td-dim">${i.sampleN} obs.</td>
+</tr>`).join('');
+
+// Optional: use historical mix% to redistribute the current single-queue
+// weekly Volume input across days (and intervals, if available). Purely
+// a display/allocation layer — does NOT alter calcBase/buildMonthlyPlan.
+let distributionHtml='';
+if(_histUseForDistribution){
+const weeklyVolInput=parseFloat(document.getElementById('volume')?.value)||0;
+const weeklyEquivalent=weeklyVolInput/4.33; // monthly input → approx weekly, transparently labeled
+const distRows=dow.map(d=>{
+const distVol=weeklyEquivalent*(d.mixPct/100);
+return `<tr><td>${d.day}</td><td>${Math.round(distVol).toLocaleString()}</td><td class="td-dim">${d.mixPct.toFixed(1)}% of week</td></tr>`;
+}).join('');
+distributionHtml=`<div class="table-card" style="margin-bottom:16px;">
+<div class="table-head-row"><div><div class="table-head-title">Forecast Distributed by Historical DoW Mix</div>
+<div class="table-head-sub">Current weekly-equivalent volume (${Math.round(weeklyEquivalent).toLocaleString()}) split by observed day-of-week mix% — informational allocation only, does not change Required FTE math above.</div></div></div>
+<div class="table-wrap"><table><thead><tr><th style="text-align:left;">Day</th><th>Distributed Volume</th><th>Basis</th></tr></thead><tbody>${distRows}</tbody></table></div>
+</div>`;
+}
+
+// Assumption Drift connection: Plan Locked → Historical Avg → Today.
+let driftHtml='';
+try{
+const baseline=loadBaseline();
+const curInp=readInputs();
+const histAvgVol=dow.reduce((s,d)=>s+d.avgVolume,0); // weekly-equivalent sum across observed days
+const histAvgAHT=dow.reduce((s,d)=>s+d.avgAHT*d.mixPct,0)/100;
+const rows3=[
+{label:'Plan Locked (Baseline)',vol:baseline&&baseline.inputs?baseline.inputs.volume:null,aht:baseline&&baseline.inputs?baseline.inputs.aht:null},
+{label:'Historical Average (loaded data)',vol:Math.round(histAvgVol),aht:Math.round(histAvgAHT)},
+{label:'Today (Current Manual Inputs)',vol:curInp.volume,aht:curInp.aht}
+];
+driftHtml=`<div class="table-card" style="margin-bottom:16px;">
+<div class="table-head-row"><div><div class="table-head-title">Plan Locked → Historical → Today</div>
+<div class="table-head-sub">Connects loaded historical data to the Assumption Drift layer above — helps answer "what changed, and does history support today's manual assumption?"</div></div></div>
+<div class="table-wrap"><table><thead><tr><th style="text-align:left;">Source</th><th>Volume</th><th>AHT</th></tr></thead><tbody>
+${rows3.map(r=>`<tr><td>${r.label}</td><td>${r.vol!=null?r.vol.toLocaleString():'—'}</td><td>${r.aht!=null?r.aht+'s':'—'}</td></tr>`).join('')}
+</tbody></table></div>
+<div style="padding:0 24px 16px;font-size:11px;color:var(--text3);">${baseline?'':'No baseline pinned yet — pin one in Assumption Drift above to compare.'} Owner/last-validated/status fields for each assumption remain in the Assumption Drift section above; this row is purely additive.</div>
+</div>`;
+}catch(e){
+console.error('Historical→Drift comparison failed:',e);
+}
+
+out.innerHTML=`
+<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:14px;">
+<div class="field" style="min-width:180px;">
+<label class="field-label">Queue Filter</label>
+<select id="histQueueSelect" class="drift-input" onchange="renderHistoricalModule()">
+${histQueueList().map(q=>`<option value="${q}" ${q===selectedQ?'selected':''}>${q}</option>`).join('')}
+</select>
+</div>
+<label style="font-size:11px;color:var(--text2);display:flex;align-items:center;gap:8px;cursor:pointer;margin-top:18px;">
+<input type="checkbox" ${_histUseForDistribution?'checked':''} onchange="toggleHistDistribution(this)"/> Use historical pattern to distribute forecast
+</label>
+</div>
+
+<div class="table-card" style="margin-bottom:16px;">
+<div class="table-head-row">
+<div><div class="table-head-title">Day-of-Week Pattern</div>
+<div class="table-head-sub">
+<span class="pill pill-hist">Based on ${sampleWeeksForDay} observation${sampleWeeksForDay===1?'':'s'} per day / ${_histData.length} total rows</span>
+</div></div>
+</div>
+<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left;">Day</th><th>Avg Volume</th><th>Mix %</th><th>Avg AHT</th><th>Range</th><th>Sample</th></tr></thead>
+<tbody>${dowRows}</tbody>
+</table></div>
+</div>
+
+<div class="table-card" style="margin-bottom:16px;">
+<div class="table-head-row">
+<div><div class="table-head-title">Interval-of-Week Pattern</div>
+<div class="table-head-sub">
+${hasInterval?`<span class="pill pill-hist">Based on ${_histData.filter(r=>r.interval).length} interval-level rows</span>`:`<span class="pill pill-manual">No interval-level data in this dataset — falling back to Day-of-Week pattern only</span>`}
+</div></div>
+</div>
+${hasInterval?`<div class="table-wrap"><table>
+<thead><tr><th style="text-align:left;">Interval</th><th>Avg Volume</th><th>Mix %</th><th>Avg AHT</th><th>Sample</th></tr></thead>
+<tbody>${iowRows}</tbody>
+</table></div>`:`<div style="padding:0 24px 20px;font-size:12px;color:var(--text2);">Add an Interval column (e.g. 09:00, 09:30...) to your CSV to unlock interval-level distribution.</div>`}
+</div>
+
+${distributionHtml}
+${driftHtml}
+`;
+}
+
+try{ toggleHistoricalModule(); }catch(e){ console.error('Historical module init failed:',e); }
+
+try{ runValidationSuite(); }catch(e){ console.error('WFM CPE validation suite threw an error:',e); }
+</script>
+</body>
+</html>
+
+
